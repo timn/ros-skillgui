@@ -1,0 +1,16 @@
+<package>
+  <description brief="skillgui">
+    A GUI for controlling skiller.
+  </description>
+  <author>Tim Niemueller</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/skillgui</url>
+  <depend package="skiller"/>
+  <depend package="actionlib"/>
+  <depend package="actionlib_msgs"/>
+  <rosdep name="gtkmm24" />
+  <rosdep name="glibmm24" />
+  <rosdep name="libglademm24" />
+  <rosdep name="libgraphviz" />
+</package>
