@@ -11,6 +11,7 @@
   <depend package="actionlib_msgs"/>
   <rosdep name="gtkmm24" />
   <rosdep name="glibmm24" />
+  <rosdep name="gconfmm26" />
   <rosdep name="libglademm24" />
   <rosdep name="libgraphviz" />
 </package>

@@ -17,8 +17,8 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 add_definitions(-DRESDIR='"${PROJECT_SOURCE_DIR}/res"')
-add_definitions(-DUSE_ROS)
-pkg_check_modules(GUI REQUIRED gtkmm-2.4 glibmm-2.4 libglademm-2.4)
+add_definitions(-DUSE_ROS -DHAVE_GLADEMM -DHAVE_GCONFMM)
+pkg_check_modules(GUI REQUIRED gtkmm-2.4 glibmm-2.4 gconfmm-2.6 libglademm-2.4)
 pkg_check_modules(GRAPHVIZ REQUIRED libgvc)
 
 include_directories(${GUI_INCLUDE_DIRS} ${GRAPHVIZ_INCLUDE_DIRS})
