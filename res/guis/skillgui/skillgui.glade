@@ -10,7 +10,6 @@
     <child>
       <widget class="GtkVBox" id="vbox1">
         <property name="visible">True</property>
-        <property name="orientation">vertical</property>
         <child>
           <widget class="GtkToolbar" id="toolbar1">
             <property name="visible">True</property>
@@ -143,7 +142,6 @@
             <child>
               <widget class="GtkVBox" id="vbox3">
                 <property name="visible">True</property>
-                <property name="orientation">vertical</property>
                 <child>
                   <widget class="GtkToolbar" id="tb_fsmgraph">
                     <property name="visible">True</property>
@@ -397,7 +395,6 @@
             <property name="row_spacing">4</property>
             <child>
               <widget class="GtkToggleButton" id="but_continuous">
-                <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="has_tooltip">True</property>
@@ -651,32 +648,52 @@
       <widget class="GtkImageMenuItem" id="mi_top_bottom">
         <property name="label">Top to Bottom</property>
         <property name="visible">True</property>
-        <property name="use_underline">True</property>
-        <property name="use_stock">True</property>
+        <property name="use_stock">False</property>
+        <child internal-child="image">
+          <widget class="GtkImage" id="image2">
+            <property name="visible">True</property>
+            <property name="stock">gtk-go-down</property>
+          </widget>
+        </child>
       </widget>
     </child>
     <child>
       <widget class="GtkImageMenuItem" id="mi_bottom_top">
         <property name="label">Bottom to Top</property>
         <property name="visible">True</property>
-        <property name="use_underline">True</property>
-        <property name="use_stock">True</property>
+        <property name="use_stock">False</property>
+        <child internal-child="image">
+          <widget class="GtkImage" id="image3">
+            <property name="visible">True</property>
+            <property name="stock">gtk-go-up</property>
+          </widget>
+        </child>
       </widget>
     </child>
     <child>
       <widget class="GtkImageMenuItem" id="mi_left_right">
         <property name="label">Left to Right</property>
         <property name="visible">True</property>
-        <property name="use_underline">True</property>
-        <property name="use_stock">True</property>
+        <property name="use_stock">False</property>
+        <child internal-child="image">
+          <widget class="GtkImage" id="image1">
+            <property name="visible">True</property>
+            <property name="stock">gtk-go-forward</property>
+          </widget>
+        </child>
       </widget>
     </child>
     <child>
       <widget class="GtkImageMenuItem" id="mi_right_left">
         <property name="label">Right to Left</property>
         <property name="visible">True</property>
-        <property name="use_underline">True</property>
-        <property name="use_stock">True</property>
+        <property name="use_stock">False</property>
+        <child internal-child="image">
+          <widget class="GtkImage" id="image4">
+            <property name="visible">True</property>
+            <property name="stock">gtk-go-back</property>
+          </widget>
+        </child>
       </widget>
     </child>
   </widget>
