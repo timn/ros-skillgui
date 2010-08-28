@@ -3,7 +3,7 @@
  *  skillgui.cpp - Skill GUI
  *
  *  Created: Mon Nov 03 13:37:33 2008
- *  Copyright  2008  Tim Niemueller [www.niemueller.de]
+ *  Copyright  2008-2010  Tim Niemueller [www.niemueller.de]
  *
  ****************************************************************************/
 
@@ -37,6 +37,9 @@
 #  include <gui_utils/service_chooser_dialog.h>
 #  include <gui_utils/interface_dispatcher.h>
 #  include <gui_utils/plugin_tree_view.h>
+#else
+#  include "throbber.h"
+#  include <functional>
 #endif
 
 #include <cstring>
@@ -46,6 +49,9 @@
 
 #ifndef USE_ROS
 using namespace fawkes;
+#else
+using namespace ros;
+using namespace actionlib;
 #endif
 
 #define ACTIVE_SKILL "Active Skill"
@@ -63,11 +69,13 @@ using namespace fawkes;
  */
 SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 				 const Glib::RefPtr<Gnome::Glade::Xml> &refxml)
-  : Gtk::Window(cobject)
+  : Gtk::Window(cobject), __rosnh(), __ac_exec(__rosnh, "/skiller/exec")
 {
 #ifdef USE_ROS
   __sub_graph = __rosnh.subscribe("/skiller/graph", 10,
 				  &SkillGuiGtkWindow::ros_graphmsg_cb, this);
+  __srv_graph_color = __rosnh.serviceClient<skiller::SetGraphColored>("/skiller/graph/set_colored");
+  __srv_graph_direction = __rosnh.serviceClient<skiller::SetGraphDirection>("/skiller/graph/set_direction");
 #else
   bb = NULL;
   __skiller_if = NULL;
@@ -82,9 +90,9 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 
 #ifndef USE_ROS
   refxml->get_widget_derived("trv_log", __logview);
-  refxml->get_widget_derived("img_throbber", __throbber);
   refxml->get_widget_derived("trv_plugins",  __trv_plugins);
 #endif
+  refxml->get_widget_derived("img_throbber", __throbber);
   refxml->get_widget("tb_connection", tb_connection);
   refxml->get_widget("but_continuous", but_continuous);
   refxml->get_widget("but_clearlog", but_clearlog);
@@ -154,6 +162,11 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 #else
   ntb_tabs->remove_page(0);
   ntb_tabs->remove_page(-1);
+  tb_connection->hide();
+  tb_controller->hide();
+  but_exec->set_sensitive(true);
+  but_stop->set_sensitive(true);
+  cbe_skillstring->set_sensitive(true);
 #endif
 
 #ifdef USE_PAPYRUS
@@ -178,10 +191,10 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   //connection_dispatcher.signal_disconnected().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_disconnect));
 
   //tb_connection->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_connection_clicked));
-  //but_exec->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_exec_clicked));
   //tb_controller->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_controller_clicked));
+  but_exec->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_exec_clicked));
   tb_exit->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_exit_clicked));
-  //but_stop->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_stop_clicked));
+  but_stop->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_stop_clicked));
   but_continuous->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_contexec_toggled));
   //but_clearlog->signal_clicked().connect(sigc::mem_fun(*__logview, &LogView::clear));
   //tb_skiller->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_skdbg_data_changed));
@@ -191,7 +204,6 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   //cb_graphlist->signal_changed().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_skill_changed));
   //tb_graphupd->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphupd_clicked));
 #ifndef USE_ROS
-  tb_graphdir->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_clicked));
   mi_top_bottom->signal_activate().connect(sigc::bind(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_changed), SkillerDebugInterface::GD_TOP_BOTTOM));
   mi_bottom_top->signal_activate().connect(sigc::bind(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_changed), SkillerDebugInterface::GD_BOTTOM_TOP));
   mi_left_right->signal_activate().connect(sigc::bind(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_changed), SkillerDebugInterface::GD_LEFT_RIGHT));
@@ -199,7 +211,8 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 #else
   __graph_changed.connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graph_changed));
 #endif
-  //tb_graphcolored->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphcolor_toggled));
+  tb_graphdir->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_clicked));
+  tb_graphcolored->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphcolor_toggled));
 #ifdef USE_PAPYRUS
   tb_graphsave->signal_clicked().connect(sigc::mem_fun(*pvp_graph, &SkillGuiGraphViewport::save));
   tb_zoomin->signal_clicked().connect(sigc::mem_fun(*pvp_graph, &SkillGuiGraphViewport::zoom_in));
@@ -270,8 +283,10 @@ SkillGuiGtkWindow::on_skill_changed()
   if ( skill == ACTIVE_SKILL ) {
     skill = "ACTIVE";
   }
-  //SkillerDebugInterface::SetGraphMessage *sgm = new SkillerDebugInterface::SetGraphMessage(skill.c_str());
-  //__skdbg_if->msgq_enqueue(sgm);
+#ifndef USE_ROS
+  SkillerDebugInterface::SetGraphMessage *sgm = new SkillerDebugInterface::SetGraphMessage(skill.c_str());
+  __skdbg_if->msgq_enqueue(sgm);
+#endif
 }
 
 void
@@ -288,6 +303,103 @@ SkillGuiGtkWindow::on_exit_clicked()
 {
   Gtk::Main::quit();
 }
+
+void
+SkillGuiGtkWindow::on_exec_clicked()
+{
+  Glib::ustring sks = "";
+  if ( cbe_skillstring->get_active_row_number() == -1 ) {
+    Gtk::Entry *entry = cbe_skillstring->get_entry();
+    sks = entry->get_text();
+  } else {
+    Gtk::TreeModel::Row row = *cbe_skillstring->get_active();
+    row.get_value(cbe_skillstring->get_text_column(), sks);
+  }
+
+  if ( sks != "" ) {
+    __throbber->set_timeout(80);
+
+#ifndef USE_ROS
+    if (__skiller_if && __skiller_if->is_valid() && __skiller_if->has_writer() &&
+	__skiller_if->exclusive_controller() == __skiller_if->serial()) {
+
+      if ( but_continuous->get_active() ) {
+	SkillerInterface::ExecSkillContinuousMessage *escm = new SkillerInterface::ExecSkillContinuousMessage(sks.c_str());
+	__skiller_if->msgq_enqueue(escm);
+      } else {
+	SkillerInterface::ExecSkillMessage *esm = new SkillerInterface::ExecSkillMessage(sks.c_str());
+	__skiller_if->msgq_enqueue(esm);
+      }
+
+    } else {
+      Gtk::MessageDialog md(*this, "The exclusive control over the skiller has "
+			    "not been acquired yet and skills cannot be executed",
+			    /* markup */ false,
+			    Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK,
+			    /* modal */ true);
+      md.set_title("Skill Execution Failure");
+      md.run();
+    }
+
+#else // ROS
+    printf("Starting execution of %s\n", sks.c_str());
+    skiller::ExecSkillGoal goal;
+    goal.skillstring = sks;
+    //__ac_exec.cancelGoalsAtAndBeforeTime(ros::Time::now());
+    __gh.reset();
+    __gh = __ac_exec.sendGoal(goal,
+			      boost::bind(&SkillGuiGtkWindow::ros_exec_transition_cb, this, _1),
+			      boost::bind(&SkillGuiGtkWindow::ros_exec_feedback_cb, this, _1, _2));
+#endif
+    Gtk::TreeModel::Children children = __sks_list->children();
+    bool ok = true;
+    if ( ! children.empty() ) {
+      size_t num = 0;
+      Gtk::TreeIter i = children.begin();
+      while (ok && (i != children.end())) {
+	if ( num >= 9 ) {
+	  i = __sks_list->erase(i);
+	} else {
+	  Gtk::TreeModel::Row row = *i;
+	  ok = (row[__sks_record.skillstring] != sks);
+	  ++num;
+	  ++i;
+	}
+      }
+    }
+    if (ok) {
+      Gtk::TreeModel::Row row  = *__sks_list->prepend();
+      row[__sks_record.skillstring] = sks;
+      
+      std::list<Glib::ustring> l;
+      for (Gtk::TreeIter i = children.begin(); i != children.end(); ++i) {
+	Gtk::TreeModel::Row row = *i;
+	l.push_back(row[__sks_record.skillstring]);
+      }
+
+#ifdef HAVE_GCONFMM
+      __gconf->set_string_list(GCONF_PREFIX"/command_history", l);
+#endif
+    }
+  }
+}
+
+void
+SkillGuiGtkWindow::on_stop_clicked()
+{
+#ifndef USE_ROS
+  if ( bb && __skiller_if && __skiller_if->is_valid() && __skiller_if->has_writer() ) {
+    SkillerInterface::StopExecMessage *sem = new SkillerInterface::StopExecMessage();
+    __skiller_if->msgq_enqueue(sem);
+  }
+#else
+  if (! __gh.isExpired()) {
+    __gh.cancel();
+  }
+#endif
+}
+
+
 
 #ifndef USE_ROS
 
@@ -325,15 +437,6 @@ SkillGuiGtkWindow::on_controller_clicked()
 			  /* modal */ true);
     md.set_title("Control Acquisition Failed");
     md.run();
-  }
-}
-
-void
-SkillGuiGtkWindow::on_stop_clicked()
-{
-  if ( bb && __skiller_if && __skiller_if->is_valid() && __skiller_if->has_writer() ) {
-    SkillerInterface::StopExecMessage *sem = new SkillerInterface::StopExecMessage();
-    __skiller_if->msgq_enqueue(sem);
   }
 }
 
@@ -439,75 +542,6 @@ SkillGuiGtkWindow::on_disconnect()
   __logview->set_client(NULL);
 
   this->set_title("Skill GUI");
-}
-
-
-void
-SkillGuiGtkWindow::on_exec_clicked()
-{
-  Glib::ustring sks = "";
-  if ( cbe_skillstring->get_active_row_number() == -1 ) {
-    Gtk::Entry *entry = cbe_skillstring->get_entry();
-    sks = entry->get_text();
-  } else {
-    Gtk::TreeModel::Row row = *cbe_skillstring->get_active();
-    row.get_value(cbe_skillstring->get_text_column(), sks);
-  }
-
-  if ( sks != "" ) {
-    __throbber->set_timeout(80);
-
-    if (__skiller_if && __skiller_if->is_valid() && __skiller_if->has_writer() &&
-	__skiller_if->exclusive_controller() == __skiller_if->serial()) {
-
-      if ( but_continuous->get_active() ) {
-	SkillerInterface::ExecSkillContinuousMessage *escm = new SkillerInterface::ExecSkillContinuousMessage(sks.c_str());
-	__skiller_if->msgq_enqueue(escm);
-      } else {
-	SkillerInterface::ExecSkillMessage *esm = new SkillerInterface::ExecSkillMessage(sks.c_str());
-	__skiller_if->msgq_enqueue(esm);
-      }
-
-      Gtk::TreeModel::Children children = __sks_list->children();
-      bool ok = true;
-      if ( ! children.empty() ) {
-	size_t num = 0;
-	Gtk::TreeIter i = children.begin();
-	while (ok && (i != children.end())) {
-	  if ( num >= 9 ) {
-	    i = __sks_list->erase(i);
-	} else {
-	    Gtk::TreeModel::Row row = *i;
-	    ok = (row[__sks_record.skillstring] != sks);
-	    ++num;
-	    ++i;
-	  }
-	}
-      }
-      if (ok) {
-	Gtk::TreeModel::Row row  = *__sks_list->prepend();
-	row[__sks_record.skillstring] = sks;
-	
-	std::list<Glib::ustring> l;
-	for (Gtk::TreeIter i = children.begin(); i != children.end(); ++i) {
-	  Gtk::TreeModel::Row row = *i;
-	  l.push_back(row[__sks_record.skillstring]);
-	}
-
-#ifdef HAVE_GCONFMM
-	__gconf->set_string_list(GCONF_PREFIX"/command_history", l);
-#endif
-      }
-    } else {
-      Gtk::MessageDialog md(*this, "The exclusive control over the skiller has "
-			    "not been acquired yet and skills cannot be executed",
-			    /* markup */ false,
-			    Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK,
-			    /* modal */ true);
-      md.set_title("Skill Execution Failure");
-      md.run();
-    }
-  }
 }
 
 
@@ -688,16 +722,16 @@ SkillGuiGtkWindow::update_graph(std::string &graph_name, std::string &dotgraph)
 }
 
 
-#ifndef USE_ROS
 void
 SkillGuiGtkWindow::on_graphdir_clicked()
 {
+  Glib::ustring stockid = tb_graphdir->get_stock_id();
+#ifndef USE_ROS
   SkillerDebugInterface *iface = __skdbg_if;
   if (tb_agent->get_active()) {
     iface = __agdbg_if;
   }
 
-  Glib::ustring stockid = tb_graphdir->get_stock_id();
   if (stockid == Gtk::Stock::GO_DOWN.id) {
     send_graphdir_message(iface, SkillerDebugInterface::GD_BOTTOM_TOP);
   } else if (stockid == Gtk::Stock::GO_UP.id) {
@@ -707,8 +741,62 @@ SkillGuiGtkWindow::on_graphdir_clicked()
   } else if (stockid == Gtk::Stock::GO_BACK.id) {
     send_graphdir_message(iface, SkillerDebugInterface::GD_TOP_BOTTOM);
   }
+#else
+  skiller::SetGraphDirection srvr;
+  skiller::Graph graphmsg;
+  if (stockid == Gtk::Stock::GO_DOWN.id) {
+    srvr.request.direction = graphmsg.GRAPH_DIR_BOTTOM_TOP;
+  } else if (stockid == Gtk::Stock::GO_UP.id) {
+    srvr.request.direction = graphmsg.GRAPH_DIR_LEFT_RIGHT;
+  } else if (stockid == Gtk::Stock::GO_FORWARD.id) {
+    srvr.request.direction = graphmsg.GRAPH_DIR_RIGHT_LEFT;
+  } else if (stockid == Gtk::Stock::GO_BACK.id) {
+    srvr.request.direction = graphmsg.GRAPH_DIR_TOP_BOTTOM;
+  }
+  __srv_graph_direction.call(srvr);
+#endif
 }
 
+void
+SkillGuiGtkWindow::on_graphcolor_toggled()
+{
+  bool colored = tb_graphcolored->get_active();
+#ifdef HAVE_GCONFMM
+  __gconf->set(GCONF_PREFIX"/graph_colored", colored);
+#endif
+#ifndef USE_ROS
+  SkillerDebugInterface *iface = __skdbg_if;
+  if (tb_agent->get_active()) {
+    iface = __agdbg_if;
+  }
+
+  try {
+    if (iface) {
+      SkillerDebugInterface::SetGraphColoredMessage *m;
+      m = new SkillerDebugInterface::SetGraphColoredMessage(colored);
+      iface->msgq_enqueue(m);
+    } else {
+      throw Exception("Not connected to Fawkes.");
+    }
+  } catch (Exception &e) {
+    /* Ignore for now, causes error message on startup
+    Gtk::MessageDialog md(*this,
+			  Glib::ustring("Setting graph color failed: ") + e.what(),
+			  / markup / false,
+			  Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK,
+			  / modal / true);
+    md.set_title("Communication Failure");
+    md.run();
+    */
+  }
+#else
+  skiller::SetGraphColored srvr;
+  srvr.request.colored = colored;
+  __srv_graph_color.call(srvr);
+#endif
+}
+
+#ifndef USE_ROS
 void
 SkillGuiGtkWindow::send_graphdir_message(SkillerDebugInterface *iface,
 					 SkillerDebugInterface::GraphDirectionEnum gd)
@@ -743,56 +831,72 @@ SkillGuiGtkWindow::on_graphdir_changed(SkillerDebugInterface::GraphDirectionEnum
 }
 
 
-void
-SkillGuiGtkWindow::on_graphcolor_toggled()
-{
-#ifdef HAVE_GCONFMM
-  __gconf->set(GCONF_PREFIX"/graph_colored", tb_graphcolored->get_active());
-#endif
-
-  SkillerDebugInterface *iface = __skdbg_if;
-  if (tb_agent->get_active()) {
-    iface = __agdbg_if;
-  }
-
-  try {
-    if (iface) {
-      SkillerDebugInterface::SetGraphColoredMessage *m;
-      m = new SkillerDebugInterface::SetGraphColoredMessage(tb_graphcolored->get_active());
-      iface->msgq_enqueue(m);
-    } else {
-      throw Exception("Not connected to Fawkes.");
-    }
-  } catch (Exception &e) {
-    /* Ignore for now, causes error message on startup
-    Gtk::MessageDialog md(*this,
-			  Glib::ustring("Setting graph color failed: ") + e.what(),
-			  / markup / false,
-			  Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK,
-			  / modal / true);
-    md.set_title("Communication Failure");
-    md.run();
-    */
-  }
-}
 #else
 
 
 void
 SkillGuiGtkWindow::on_graph_changed()
 {
-  update_graph(__graph_name, __graph);
+  std::string graph_name = __graph_msg->name;
+  std::string dotgraph = __graph_msg->dotgraph;
+  update_graph(graph_name, dotgraph);
+
+  switch (__graph_msg->direction) {
+  case skiller::Graph::GRAPH_DIR_TOP_BOTTOM:
+    tb_graphdir->set_stock_id(Gtk::Stock::GO_DOWN); break;
+  case skiller::Graph::GRAPH_DIR_BOTTOM_TOP:
+    tb_graphdir->set_stock_id(Gtk::Stock::GO_UP); break;
+  case skiller::Graph::GRAPH_DIR_LEFT_RIGHT:
+    tb_graphdir->set_stock_id(Gtk::Stock::GO_FORWARD); break;
+  case skiller::Graph::GRAPH_DIR_RIGHT_LEFT:
+    tb_graphdir->set_stock_id(Gtk::Stock::GO_BACK); break;
+  default: break;
+  }
 }
 
 void
 SkillGuiGtkWindow::ros_graphmsg_cb(const skiller::Graph::ConstPtr &msg)
 {
-  printf("Message received\n");
-  __graph_name = "ROS";
-  __graph = msg->dotgraph;
+  __graph_msg = msg;
   __graph_changed();
 }
 
+
+void
+SkillGuiGtkWindow::ros_exec_transition_cb(actionlib::ClientGoalHandle<skiller::ExecSkillAction> &gh)
+{
+  CommState comm_state_ = gh.getCommState();
+  printf("Transition to %i\n", comm_state_.state_);
+  if (comm_state_.state_ == CommState::DONE) {
+    printf("State: %i\n", gh.getTerminalState().state_);
+    switch(gh.getTerminalState().state_) {
+    case TerminalState::SUCCEEDED:
+      __throbber->stop_anim();
+      __throbber->set_stock(Gtk::Stock::APPLY);
+      lab_status->set_text("S_FINAL");
+      break;
+    default:
+      __throbber->stop_anim();
+      __throbber->set_stock(Gtk::Stock::DIALOG_WARNING);
+      lab_status->set_text("S_FAILED");
+      if (gh.getResult() != NULL) {
+	lab_error->set_text(gh.getResult()->errmsg);
+      }
+      break;
+    }
+    gh.reset();
+  } else {
+    __throbber->start_anim();
+    lab_status->set_text("S_RUNNING");
+    lab_error->set_text("");
+  }
+}
+
+void
+SkillGuiGtkWindow::ros_exec_feedback_cb(actionlib::ClientGoalHandle<skiller::ExecSkillAction> &gh,
+					const skiller::ExecSkillFeedbackConstPtr &feedback)
+{
+}
 
 #endif
 

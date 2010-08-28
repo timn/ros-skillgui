@@ -35,6 +35,14 @@
 #  include <gui_utils/connection_dispatcher.h>
 #  include <interfaces/SkillerInterface.h>
 #  include <interfaces/SkillerDebugInterface.h>
+#else
+#  include <ros/ros.h>
+#  include <actionlib/client/action_client.h>
+#  include <skiller/Graph.h>
+#  include <skiller/SetGraphColored.h>
+#  include <skiller/SetGraphDirection.h>
+#  include <skiller/ExecSkillAction.h>
+#endif
 
 namespace fawkes {
   class BlackBoard;
@@ -43,10 +51,6 @@ namespace fawkes {
   class Throbber;
   class PluginTreeView;
 }
-#else
-#  include <ros/ros.h>
-#  include <skiller/Graph.h>
-#endif
 
 #ifdef USE_PAPYRUS
 class SkillGuiGraphViewport;
@@ -70,24 +74,27 @@ class SkillGuiGtkWindow : public Gtk::Window
   void on_update_disabled();
   void on_recording_toggled();
   void on_exit_clicked();
+  void on_graphcolor_toggled();
+  void on_graphdir_clicked();
+  void on_exec_clicked();
+  void on_stop_clicked();
 #ifndef USE_ROS
   void on_controller_clicked();
   void on_connection_clicked();
   void close_bb();
-  void on_exec_clicked();
-  void on_stop_clicked();
   void on_skiller_data_changed();
   void on_skdbg_data_changed();
   void on_agdbg_data_changed();
   void on_connect();
   void on_disconnect();
-  void on_graphcolor_toggled();
-  void on_graphdir_clicked();
   void send_graphdir_message(fawkes::SkillerDebugInterface *iface,
 			     fawkes::SkillerDebugInterface::GraphDirectionEnum gd);
   void on_graphdir_changed(fawkes::SkillerDebugInterface::GraphDirectionEnum gd);
 #else
   void ros_graphmsg_cb(const skiller::Graph::ConstPtr &msg);
+  void ros_exec_transition_cb(actionlib::ClientGoalHandle<skiller::ExecSkillAction> &gh);
+  void ros_exec_feedback_cb(actionlib::ClientGoalHandle<skiller::ExecSkillAction> &gh,
+			    const skiller::ExecSkillFeedbackConstPtr &feedback);
   void on_graph_changed();
 #endif
 
@@ -162,18 +169,22 @@ class SkillGuiGtkWindow : public Gtk::Window
 #ifdef USE_ROS
   ros::NodeHandle __rosnh;
   ros::Subscriber __sub_graph;
+  ros::ServiceClient __srv_graph_color;
+  ros::ServiceClient __srv_graph_direction;
   Glib::Dispatcher __graph_changed;
-  std::string __graph_name;
-  std::string __graph;
+  skiller::Graph::ConstPtr __graph_msg;
+  actionlib::ActionClient<skiller::ExecSkillAction> __ac_exec;
+  actionlib::ClientGoalHandle<skiller::ExecSkillAction> __gh;
 #else
   fawkes::SkillerInterface *__skiller_if;
   fawkes::SkillerDebugInterface *__skdbg_if;
   fawkes::SkillerDebugInterface *__agdbg_if;
 
   fawkes::LogView         *__logview;
-  fawkes::Throbber        *__throbber;
   fawkes::PluginTreeView  *__trv_plugins;
 #endif
+  fawkes::Throbber        *__throbber;
+
 };
 
 #endif
