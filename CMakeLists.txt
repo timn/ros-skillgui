@@ -37,5 +37,5 @@ link_libraries(${GUI_LIBRARIES} ${GRAPHVIZ_LIBRARIES})
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
-rosbuild_add_executable(skillgui src/main.cpp src/skillgui.cpp src/graph_drawing_area.cpp src/gvplugin_skillgui_cairo.cpp)
+rosbuild_add_executable(skillgui src/main.cpp src/skillgui.cpp src/graph_drawing_area.cpp src/gvplugin_skillgui_cairo.cpp src/throbber.cpp)
 
