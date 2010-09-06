@@ -91,7 +91,8 @@ class SkillGuiGtkWindow : public Gtk::Window
 			     fawkes::SkillerDebugInterface::GraphDirectionEnum gd);
   void on_graphdir_changed(fawkes::SkillerDebugInterface::GraphDirectionEnum gd);
 #else
-  void ros_graphmsg_cb(const skiller::Graph::ConstPtr &msg);
+  void ros_skiller_graphmsg_cb(const skiller::Graph::ConstPtr &msg);
+  void ros_agent_graphmsg_cb(const skiller::Graph::ConstPtr &msg);
   void ros_exec_transition_cb(actionlib::ClientGoalHandle<skiller::ExecSkillAction> &gh);
   void ros_exec_feedback_cb(actionlib::ClientGoalHandle<skiller::ExecSkillAction> &gh,
 			    const skiller::ExecSkillFeedbackConstPtr &feedback);
@@ -168,11 +169,15 @@ class SkillGuiGtkWindow : public Gtk::Window
 
 #ifdef USE_ROS
   ros::NodeHandle __rosnh;
-  ros::Subscriber __sub_graph;
-  ros::ServiceClient __srv_graph_color;
-  ros::ServiceClient __srv_graph_direction;
+  ros::Subscriber __sub_graph_skiller;
+  ros::Subscriber __sub_graph_agent;
+  ros::ServiceClient __srv_graph_color_skiller;
+  ros::ServiceClient __srv_graph_direction_skiller;
+  ros::ServiceClient __srv_graph_color_agent;
+  ros::ServiceClient __srv_graph_direction_agent;
   Glib::Dispatcher __graph_changed;
-  skiller::Graph::ConstPtr __graph_msg;
+  skiller::Graph::ConstPtr __graph_msg_skiller;
+  skiller::Graph::ConstPtr __graph_msg_agent;
   actionlib::ActionClient<skiller::ExecSkillAction> __ac_exec;
   actionlib::ClientGoalHandle<skiller::ExecSkillAction> __gh;
 #else

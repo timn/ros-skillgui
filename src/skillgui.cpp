@@ -72,10 +72,14 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   : Gtk::Window(cobject), __rosnh(), __ac_exec(__rosnh, "/skiller/exec")
 {
 #ifdef USE_ROS
-  __sub_graph = __rosnh.subscribe("/skiller/graph", 10,
-				  &SkillGuiGtkWindow::ros_graphmsg_cb, this);
-  __srv_graph_color = __rosnh.serviceClient<skiller::SetGraphColored>("/skiller/graph/set_colored");
-  __srv_graph_direction = __rosnh.serviceClient<skiller::SetGraphDirection>("/skiller/graph/set_direction");
+  __sub_graph_skiller = __rosnh.subscribe("/skiller/graph", 10,
+					  &SkillGuiGtkWindow::ros_skiller_graphmsg_cb, this);
+  __sub_graph_agent  = __rosnh.subscribe("/luaagent/graph", 10,
+					 &SkillGuiGtkWindow::ros_agent_graphmsg_cb, this);
+  __srv_graph_color_skiller = __rosnh.serviceClient<skiller::SetGraphColored>("/skiller/graph/set_colored");
+  __srv_graph_direction_skiller = __rosnh.serviceClient<skiller::SetGraphDirection>("/skiller/graph/set_direction");
+  __srv_graph_color_agent = __rosnh.serviceClient<skiller::SetGraphColored>("/luaagent/graph/set_colored");
+  __srv_graph_direction_agent = __rosnh.serviceClient<skiller::SetGraphDirection>("/luaagent/graph/set_direction");
 #else
   bb = NULL;
   __skiller_if = NULL;
@@ -753,7 +757,11 @@ SkillGuiGtkWindow::on_graphdir_clicked()
   } else if (stockid == Gtk::Stock::GO_BACK.id) {
     srvr.request.direction = graphmsg.GRAPH_DIR_TOP_BOTTOM;
   }
-  __srv_graph_direction.call(srvr);
+  if (tb_agent->get_active()) {
+    __srv_graph_direction_agent.call(srvr);
+  } else {
+    __srv_graph_direction_skiller.call(srvr);
+  }
 #endif
 }
 
@@ -792,7 +800,13 @@ SkillGuiGtkWindow::on_graphcolor_toggled()
 #else
   skiller::SetGraphColored srvr;
   srvr.request.colored = colored;
-  __srv_graph_color.call(srvr);
+  if (tb_agent->get_active() && __srv_graph_color_agent.exists()) {
+    printf("Calling agent\n");
+    __srv_graph_color_agent.call(srvr);
+  } else if (tb_skiller->get_active() && __srv_graph_color_skiller.exists()) {
+    printf("Calling skiller\n");
+    __srv_graph_color_skiller.call(srvr);
+  }
 #endif
 }
 
@@ -837,11 +851,15 @@ SkillGuiGtkWindow::on_graphdir_changed(SkillerDebugInterface::GraphDirectionEnum
 void
 SkillGuiGtkWindow::on_graph_changed()
 {
-  std::string graph_name = __graph_msg->name;
-  std::string dotgraph = __graph_msg->dotgraph;
+  skiller::Graph::ConstPtr msg = tb_agent->get_active() ? __graph_msg_agent : __graph_msg_skiller;
+
+  if (! msg)  return;
+
+  std::string graph_name = msg->name;
+  std::string dotgraph = msg->dotgraph;
   update_graph(graph_name, dotgraph);
 
-  switch (__graph_msg->direction) {
+  switch (msg->direction) {
   case skiller::Graph::GRAPH_DIR_TOP_BOTTOM:
     tb_graphdir->set_stock_id(Gtk::Stock::GO_DOWN); break;
   case skiller::Graph::GRAPH_DIR_BOTTOM_TOP:
@@ -852,13 +870,24 @@ SkillGuiGtkWindow::on_graph_changed()
     tb_graphdir->set_stock_id(Gtk::Stock::GO_BACK); break;
   default: break;
   }
+
+  msg.reset();
 }
 
 void
-SkillGuiGtkWindow::ros_graphmsg_cb(const skiller::Graph::ConstPtr &msg)
+SkillGuiGtkWindow::ros_skiller_graphmsg_cb(const skiller::Graph::ConstPtr &msg)
 {
-  __graph_msg = msg;
+  __graph_msg_skiller = msg;
+  if (tb_skiller->get_active())  __graph_changed();
+}
+
+
+void
+SkillGuiGtkWindow::ros_agent_graphmsg_cb(const skiller::Graph::ConstPtr &msg)
+{
+  __graph_msg_agent = msg;
   __graph_changed();
+  if (tb_agent->get_active())  __graph_changed();
 }
 
 
