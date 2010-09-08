@@ -46,6 +46,7 @@ NOEXPORT std::vector<double> __skillgui_cairo_render_dotted;
 NOEXPORT std::valarray<double> __skillgui_cairo_render_dashed(1);
 NOEXPORT std::valarray<double> __skillgui_cairo_render_dotted(2);
 #endif
+NOEXPORT const char *__fontname = NULL;
 
 #ifdef USE_GVPLUGIN_TIMETRACKER
 NOEXPORT fawkes::TimeTracker __tt;
@@ -180,6 +181,11 @@ skillgui_cairo_render_begin_page(GVJ_t *job)
 #endif
   SkillGuiCairoRenderInstructor *cri = (SkillGuiCairoRenderInstructor *)job->context;
 
+  obj_state_t *obj = job->obj;
+  if (obj && obj->type == ROOTGRAPH_OBJTYPE) {
+    __fontname = agget(obj->u.g, (char *)"fontname");
+  }
+
   float bbwidth  = job->bb.UR.x - job->bb.LL.x;
   float bbheight = job->bb.UR.y - job->bb.LL.y;
 
@@ -283,28 +289,23 @@ skillgui_cairo_render_textpara(GVJ_t *job, pointf p, textpara_t *para)
   Cairo::FontWeight weight = Cairo::FONT_WEIGHT_NORMAL;
   Cairo::FontSlant slant   = Cairo::FONT_SLANT_NORMAL;
   char *fontweight = NULL;
+  char *fontslant = NULL;
   if (obj->type == CLUSTER_OBJTYPE) {
     fontweight = agget(obj->u.sg, (char *)"fontweight");
+    fontslant  = agget(obj->u.sg, (char *)"fontslant");
   } else if (obj->type == ROOTGRAPH_OBJTYPE) {
     fontweight = agget(obj->u.g, (char *)"fontweight");
+    fontslant  = agget(obj->u.g, (char *)"fontslant");
   } else if (obj->type == NODE_OBJTYPE) {
     fontweight = agget(obj->u.n, (char *)"fontweight");
+    fontslant  = agget(obj->u.n, (char *)"fontslant");
   } else if (obj->type == EDGE_OBJTYPE) {
     fontweight = agget(obj->u.e, (char *)"fontweight");
+    fontslant  = agget(obj->u.e, (char *)"fontslant");
   }
   if (fontweight && (strcmp(fontweight, "bold") == 0)) {
     weight = Cairo::FONT_WEIGHT_BOLD;
     p.x -= 8;
-  }
-  char *fontslant = NULL;
-  if (obj->type == CLUSTER_OBJTYPE) {
-    fontslant = agget(obj->u.sg, (char *)"fontslant");
-  } else if (obj->type == ROOTGRAPH_OBJTYPE) {
-    fontslant = agget(obj->u.g, (char *)"fontslant");
-  } else if (obj->type == NODE_OBJTYPE) {
-    fontslant = agget(obj->u.n, (char *)"fontslant");
-  } else if (obj->type == EDGE_OBJTYPE) {
-    fontslant = agget(obj->u.e, (char *)"fontslant");
   }
   if (fontslant && (strcmp(fontslant, "italic") == 0)) {
     slant = Cairo::FONT_SLANT_ITALIC;
@@ -333,7 +334,11 @@ skillgui_cairo_render_textpara(GVJ_t *job, pointf p, textpara_t *para)
   Cairo::Matrix old_matrix;
   cairo->get_matrix(old_matrix);
 
-  cairo->select_font_face(para->fontname, slant, weight);
+  if (__fontname) {
+    cairo->select_font_face(__fontname, slant, weight);
+  } else {
+    cairo->select_font_face(para->fontname, slant, weight);
+  }
   cairo->set_font_size(para->fontsize);
   //cairo->set_font_options ( Cairo::FontOptions() );
   //cairo->set_line_width(1.0);
