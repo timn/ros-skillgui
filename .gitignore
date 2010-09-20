@@ -4,8 +4,9 @@
 /build/
 /lib/
 /msg_gen/
-/srv_gen/
-/srv/*/
 /msg/*/
+/ROS_NOBUILD
 /src/*/srv/
 /src/*/msg/
+/srv_gen/
+/srv/*/
