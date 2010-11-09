@@ -3,7 +3,9 @@
  *  throbber.h - Fawkes throbber
  *
  *  Created: Tue Nov 04 16:36:38 2008
- *  Copyright  2008  Tim Niemueller [www.niemueller.de]
+ *  Copyright  2008-2010  Tim Niemueller [www.niemueller.de]
+ *             2010       Carnegie Mellon University
+ *             2010       Intel Labs Pittsburgh
  *
  ****************************************************************************/
 
