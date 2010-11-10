@@ -1,0 +1,32 @@
+
+skillgui: GUI to instruct and monitor skiller and luaagent
+==========================================================
+
+This package provides a GUI application to instruct execution of skills, and
+monitor skills and agents executed using skiller and luaagent. Graphs are
+rendered at run-time using the Graphviz library.
+
+The SkillGUI is fully functional, but some features are not available, because
+they have not been reimplemented after porting the SkillGUI from Fawkes.
+
+Requirements
+------------
+It builds on utility packages from the behavior_engine stack. Additionally,
+it uses actionlib via actionlib_lua to instruct the skiller.
+
+Documentation
+-------------
+After starting the GUI, it will immediately connect to the ROS master. If
+a skiller or luaagent instance is registered with the master, it will connect
+automatically. As new graphs are issued they are displayed in the SkillGUI.
+Use the buttons labeled "Agent" and "Skiller" to switch between the two.
+
+On initial connect, the graph view might stay empty if no update is issued by
+skiller or luaagent. Press the rightmost button twice. This will set the graph
+to uncolored and then colored output again and trigger updates to be issued.
+
+In the entry box at the bottom skill strings can be typed and executed in the
+skiller. Attention, ROS does not prevent multiple writers from ordering
+commands. So if you order commands and have a luaagent running at the same
+time erratic behavior might result, potentially harming the robot.
+
