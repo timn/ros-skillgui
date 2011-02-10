@@ -203,9 +203,14 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   but_stop->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_stop_clicked));
   but_continuous->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_contexec_toggled));
   //but_clearlog->signal_clicked().connect(sigc::mem_fun(*__logview, &LogView::clear));
-  //tb_skiller->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_skdbg_data_changed));
+#ifdef USE_ROS
+  tb_skiller->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graph_changed));
+  tb_agent->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graph_changed));
+#else
+  tb_skiller->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_skdbg_data__changed));
+  tb_agent->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_agdbg_data__changed));
+#endif
   tb_skiller->signal_toggled().connect(sigc::bind(sigc::mem_fun(*cb_graphlist, &Gtk::ComboBoxText::set_sensitive),true));
-  //tb_agent->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_agdbg_data_changed));
   tb_agent->signal_toggled().connect(sigc::bind(sigc::mem_fun(*cb_graphlist, &Gtk::ComboBoxText::set_sensitive),false));
   //cb_graphlist->signal_changed().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_skill_changed));
   //tb_graphupd->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphupd_clicked));
@@ -855,10 +860,17 @@ SkillGuiGtkWindow::on_graph_changed()
 {
   skiller::Graph::ConstPtr msg = tb_agent->get_active() ? __graph_msg_agent : __graph_msg_skiller;
 
-  if (! msg)  return;
+  std::string graph_name = "";
+  std::string dotgraph = "";
 
-  std::string graph_name = msg->name;
-  std::string dotgraph = msg->dotgraph;
+  if (! msg) {
+    // clear
+    update_graph(graph_name, dotgraph);
+    return;
+  }
+
+  graph_name = msg->name;
+  dotgraph = msg->dotgraph;
   update_graph(graph_name, dotgraph);
 
   switch (msg->direction) {
@@ -888,7 +900,6 @@ void
 SkillGuiGtkWindow::ros_agent_graphmsg_cb(const skiller::Graph::ConstPtr &msg)
 {
   __graph_msg_agent = msg;
-  __graph_changed();
   if (tb_agent->get_active())  __graph_changed();
 }
 
