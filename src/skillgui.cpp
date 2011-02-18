@@ -72,16 +72,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 				 const Glib::RefPtr<Gnome::Glade::Xml> &refxml)
   : Gtk::Window(cobject), __rosnh(), __ac_exec(__rosnh, "/skiller/exec")
 {
-#ifdef USE_ROS
-  __sub_graph_skiller = __rosnh.subscribe("/skiller/graph", 10,
-					  &SkillGuiGtkWindow::ros_skiller_graphmsg_cb, this);
-  __sub_graph_agent  = __rosnh.subscribe("/luaagent/graph", 10,
-					 &SkillGuiGtkWindow::ros_agent_graphmsg_cb, this);
-  __srv_graph_color_skiller = __rosnh.serviceClient<skiller::SetGraphColored>("/skiller/graph/set_colored");
-  __srv_graph_direction_skiller = __rosnh.serviceClient<skiller::SetGraphDirection>("/skiller/graph/set_direction");
-  __srv_graph_color_agent = __rosnh.serviceClient<skiller::SetGraphColored>("/luaagent/graph/set_colored");
-  __srv_graph_direction_agent = __rosnh.serviceClient<skiller::SetGraphDirection>("/luaagent/graph/set_direction");
-#else
+#ifndef USE_ROS
   bb = NULL;
   __skiller_if = NULL;
   __skdbg_if = NULL;
@@ -239,6 +230,17 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   tb_zoomreset->signal_clicked().connect(sigc::mem_fun(*gda, &SkillGuiGraphDrawingArea::zoom_reset));
   tb_graphrecord->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_recording_toggled));
   gda->signal_update_disabled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_update_disabled));
+#endif
+
+#ifdef USE_ROS
+  __sub_graph_skiller = __rosnh.subscribe("/skiller/graph", 10,
+					  &SkillGuiGtkWindow::ros_skiller_graphmsg_cb, this);
+  __sub_graph_agent  = __rosnh.subscribe("/luaagent/graph", 10,
+					 &SkillGuiGtkWindow::ros_agent_graphmsg_cb, this);
+  __srv_graph_color_skiller = __rosnh.serviceClient<skiller::SetGraphColored>("/skiller/graph/set_colored");
+  __srv_graph_direction_skiller = __rosnh.serviceClient<skiller::SetGraphDirection>("/skiller/graph/set_direction");
+  __srv_graph_color_agent = __rosnh.serviceClient<skiller::SetGraphColored>("/luaagent/graph/set_colored");
+  __srv_graph_direction_agent = __rosnh.serviceClient<skiller::SetGraphDirection>("/luaagent/graph/set_direction");
 #endif
 
 #ifdef HAVE_GCONFMM
