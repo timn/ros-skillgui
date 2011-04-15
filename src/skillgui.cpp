@@ -635,34 +635,34 @@ SkillGuiGtkWindow::on_skdbg_data_changed()
       __skdbg_if->read();
 
       if (strcmp(__skdbg_if->graph_fsm(), "LIST") == 0) {
-	Glib::ustring list = __skdbg_if->graph();
-	cb_graphlist->clear_items();
-	cb_graphlist->append_text(ACTIVE_SKILL);
-	cb_graphlist->set_active_text(ACTIVE_SKILL);
+        Glib::ustring list = __skdbg_if->graph();
+        cb_graphlist->clear_items();
+        cb_graphlist->append_text(ACTIVE_SKILL);
+        cb_graphlist->set_active_text(ACTIVE_SKILL);
 #if GLIBMM_MAJOR_VERSION > 2 || ( GLIBMM_MAJOR_VERSION == 2 && GLIBMM_MINOR_VERSION >= 14 )
-	Glib::RefPtr<Glib::Regex> regex = Glib::Regex::create("\n");
-	std::list<std::string> skills = regex->split(list);
-	for (std::list<std::string>::iterator i = skills.begin(); i != skills.end(); ++i) {
-	  if (*i != "")  cb_graphlist->append_text(*i);
-	}
+        Glib::RefPtr<Glib::Regex> regex = Glib::Regex::create("\n");
+        std::list<std::string> skills = regex->split(list);
+        for (std::list<std::string>::iterator i = skills.begin(); i != skills.end(); ++i) {
+          if (*i != "")  cb_graphlist->append_text(*i);
+        }
 #endif
-	if (__skdbg_if->has_writer()) {
-	  SkillerDebugInterface::SetGraphMessage *sgm = new SkillerDebugInterface::SetGraphMessage("ACTIVE");
-	  __skdbg_if->msgq_enqueue(sgm);
-	}
+        if (__skdbg_if->has_writer()) {
+          SkillerDebugInterface::SetGraphMessage *sgm = new SkillerDebugInterface::SetGraphMessage("ACTIVE");
+          __skdbg_if->msgq_enqueue(sgm);
+        }
       } else {
-	update_graph(__skdbg_if->graph_fsm(), __skdbg_if->graph());
+        update_graph(__skdbg_if->graph_fsm(), __skdbg_if->graph(), std::string(""));
       }
 
       switch (__skdbg_if->graph_dir()) {
       case SkillerDebugInterface::GD_TOP_BOTTOM:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_DOWN); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_DOWN); break;
       case SkillerDebugInterface::GD_BOTTOM_TOP:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_UP); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_UP); break;
       case SkillerDebugInterface::GD_LEFT_RIGHT:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_FORWARD); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_FORWARD); break;
       case SkillerDebugInterface::GD_RIGHT_LEFT:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_BACK); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_BACK); break;
       }
     } catch (Exception &e) {
       // ignored
@@ -688,13 +688,13 @@ SkillGuiGtkWindow::on_agdbg_data_changed()
 
       switch (__agdbg_if->graph_dir()) {
       case SkillerDebugInterface::GD_TOP_BOTTOM:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_DOWN); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_DOWN); break;
       case SkillerDebugInterface::GD_BOTTOM_TOP:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_UP); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_UP); break;
       case SkillerDebugInterface::GD_LEFT_RIGHT:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_FORWARD); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_FORWARD); break;
       case SkillerDebugInterface::GD_RIGHT_LEFT:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_BACK); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_BACK); break;
       }
     } catch (Exception &e) {
       // ignored
@@ -728,13 +728,14 @@ SkillGuiGtkWindow::on_graphupd_clicked()
 
 
 void
-SkillGuiGtkWindow::update_graph(std::string &graph_name, std::string &dotgraph)
+SkillGuiGtkWindow::update_graph(std::string &graph_name, std::string &dotgraph, std::string &active_state)
 {
 #ifdef USE_PAPYRUS
   pvp_graph->set_graph_fsm(graph_name);
   pvp_graph->set_graph(dotgraph);
   pvp_graph->render();
 #else
+  gda->set_active_state(active_state);
   gda->set_graph_fsm(graph_name);
   gda->set_graph(dotgraph);
 #endif
@@ -885,16 +886,18 @@ SkillGuiGtkWindow::on_graph_changed()
 
   std::string graph_name = "";
   std::string dotgraph = "";
+  std::string active_state = "";
 
   if (! msg) {
     // clear
-    update_graph(graph_name, dotgraph);
+    update_graph(graph_name, dotgraph, active_state);
     return;
   }
 
   graph_name = msg->name;
   dotgraph = msg->dotgraph;
-  update_graph(graph_name, dotgraph);
+  active_state = msg->active_state;
+  update_graph(graph_name, dotgraph, active_state);
 
   switch (msg->direction) {
   case skiller::Graph::GRAPH_DIR_TOP_BOTTOM:

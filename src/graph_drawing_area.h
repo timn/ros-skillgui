@@ -23,6 +23,9 @@
 #ifndef __TOOLS_SKILLGUI_GRAPH_DRAWING_AREA_H_
 #define __TOOLS_SKILLGUI_GRAPH_DRAWING_AREA_H_
 
+#include <math.h>
+#include <sys/time.h>
+
 #include <gtkmm.h>
 
 #include <gvc.h>
@@ -51,6 +54,7 @@ class SkillGuiGraphDrawingArea
   bool set_follow_active_state(bool follow_active_state);
   
   void set_graph_fsm(std::string fsm_name);
+  void set_active_state(std::string active_state);
   void set_graph(std::string graph);
 
   void   set_bb(double bbw, double bbh);
@@ -60,6 +64,8 @@ class SkillGuiGraphDrawingArea
   bool   scale_override();
   double get_scale();
   void   get_translation(double &tx, double &ty);
+  void   update_translations();
+  void   get_state_position(std::string state_name, double &px, double &py);
   void   get_dimensions(double &width, double &height);
   void   get_pad(double &pad_x, double &pad_y);
   Cairo::RefPtr<Cairo::Context> get_cairo();
@@ -92,10 +98,12 @@ class SkillGuiGraphDrawingArea
 
   GVC_t *__gvc;
 
-  std::string __graph_fsm;
   std::string __graph;
+  std::string __graph_fsm;
+  std::string __active_state;
   std::string __nonupd_graph;
   std::string __nonupd_graph_fsm;
+  std::string __nonupd_active_state;
 
   double __bbw;
   double __bbh;
@@ -105,6 +113,13 @@ class SkillGuiGraphDrawingArea
   double __translation_y;
   double __scale;
 
+  double __last_update_time;
+  double __speed;
+  double __speed_max;
+  double __speed_ramp_distance;
+  double __translation_x_setpoint;
+  double __translation_y_setpoint;
+  
   double __last_mouse_x;
   double __last_mouse_y;
 

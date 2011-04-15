@@ -45,10 +45,18 @@ SkillGuiGraphDrawingArea::SkillGuiGraphDrawingArea()
   __bbw = __bbh = __pad_x = __pad_y = 0.0;
   __translation_x = __translation_y = 0.0;
   __scale = 1.0;
+  __speed = 0.0;
+  __speed_max = 100.0;
+  __speed_ramp_distance = 100.0;
+  __translation_x_setpoint = __translation_y_setpoint = 0.0;
   __scale_override = false;
   __update_graph = true;
   __recording = false;
 
+  timeval now;
+  gettimeofday(&now, NULL);
+  __last_update_time = now.tv_sec + now.tv_usec/1000000;
+  
   gvplugin_skillgui_cairo_setup(__gvc, this);
 
   __fcd_save = new Gtk::FileChooserDialog("Save Graph",
@@ -138,6 +146,20 @@ SkillGuiGraphDrawingArea::set_graph_fsm(std::string fsm_name)
 }
 
 
+/** Set graph's active state name.
+ * @param active_state name of active state
+ */
+void
+SkillGuiGraphDrawingArea::set_active_state(std::string active_state)
+{
+  if ( __update_graph ) {
+    __active_state = active_state;
+  } else {
+    __nonupd_active_state = active_state;
+  }
+}
+
+
 /** Set graph.
  * @param graph string representation of the current graph in the dot language.
  */
@@ -163,11 +185,11 @@ SkillGuiGraphDrawingArea::set_graph(std::string graph)
 		    tms.tm_year + 1900, tms.tm_mon + 1, tms.tm_mday,
 		    tms.tm_hour, tms.tm_min, tms.tm_sec, t.tv_nsec) != -1) {
 
-	//printf("Would record to filename %s\n", tmp);
-	save_dotfile(tmp);
-	free(tmp);
+          //printf("Would record to filename %s\n", tmp);
+          save_dotfile(tmp);
+          free(tmp);
       } else {
-	printf("Warning: Could not create file name for recording, skipping graph\n");
+        printf("Warning: Could not create file name for recording, skipping graph\n");
       }
     } else {
       printf("Warning: Could not time recording, skipping graph\n");
@@ -258,10 +280,10 @@ SkillGuiGraphDrawingArea::get_scale()
 void
 SkillGuiGraphDrawingArea::get_translation(double &tx, double &ty)
 {
+  update_translations();
   tx = __translation_x;
   ty = __translation_y;
 }
-
 
 /** Get dimensions
  * @param width upon return contains width
@@ -282,11 +304,15 @@ SkillGuiGraphDrawingArea::get_dimensions(double &width, double &height)
 void
 SkillGuiGraphDrawingArea::zoom_in()
 {
-  Gtk::Allocation alloc = get_allocation();
-  __scale += 0.1;
   __scale_override = true;
-  __translation_x = (alloc.get_width()  - __bbw * __scale) / 2.0;
-  __translation_y = (alloc.get_height() - __bbh * __scale) / 2.0 + __bbh * __scale;
+  Gtk::Allocation alloc = get_allocation();
+  double old_scale = __scale;
+  __scale /= 0.80;
+  double px, py;
+  px = (alloc.get_width()/2  - __translation_x                  ) / (old_scale * __bbw);
+  py = (alloc.get_height()/2 - __translation_y + __bbh * old_scale) / (old_scale * __bbh);
+  __translation_x = alloc.get_width()/2  - px*__bbw*__scale;
+  __translation_y = alloc.get_height()/2 - py*__bbh*__scale + __bbh * __scale;
   queue_draw();
 }
 
@@ -299,9 +325,13 @@ SkillGuiGraphDrawingArea::zoom_out()
   __scale_override = true;
   if ( __scale > 0.1 ) {
     Gtk::Allocation alloc = get_allocation();
-    __scale -= 0.1;
-    __translation_x = (alloc.get_width()  - __bbw * __scale) / 2.0;
-    __translation_y = (alloc.get_height() - __bbh * __scale) / 2.0 + __bbh * __scale;
+    double old_scale = __scale;
+    __scale *= 0.80;
+    double px, py;
+    px = (alloc.get_width()/2  - __translation_x                  ) / (old_scale * __bbw);
+    py = (alloc.get_height()/2 - __translation_y + __bbh * old_scale) / (old_scale * __bbh);
+    __translation_x = alloc.get_width()/2  - px*__bbw*__scale;
+    __translation_y = alloc.get_height()/2 - py*__bbh*__scale + __bbh * __scale;
     queue_draw();
   }
 }
@@ -376,8 +406,9 @@ SkillGuiGraphDrawingArea::set_update_graph(bool update)
     if ( __graph_fsm != __nonupd_graph_fsm ) {
       __scale_override = false;
     }
-    __graph     = __nonupd_graph;
-    __graph_fsm = __nonupd_graph_fsm;
+    __graph        = __nonupd_graph;
+    __graph_fsm    = __nonupd_graph_fsm;
+    __active_state = __nonupd_active_state;
     queue_draw();
   }
   __update_graph = update;
@@ -410,7 +441,7 @@ SkillGuiGraphDrawingArea::set_follow_active_state(bool follow_active_state)
   } else {
     __follow_active_state = false;
   }
-  //printf("follow_active_state: '%s'\n", (__follow_active_state)?"true":"false");
+  printf("follow_active_state: '%s'\n", (__follow_active_state)?"true":"false");
   return __follow_active_state;
 }
 
@@ -537,7 +568,7 @@ SkillGuiGraphDrawingArea::open()
       char tmp[4096];
       size_t s;
       if ((s = fread(tmp, 1, 4096, f)) > 0) {
-	__graph.append(tmp, s);
+        __graph.append(tmp, s);
       }
     }
     fclose(f);
@@ -581,8 +612,7 @@ SkillGuiGraphDrawingArea::on_expose_event(GdkEventExpose* event)
     }
 
     __cairo.clear();
-  }    
-
+  }
   return true;
 }
 
@@ -631,3 +661,74 @@ SkillGuiGraphDrawingArea::on_motion_notify_event(GdkEventMotion *event)
   return true;
 }
 
+
+/** Get position of a state in the graph.
+ * @param state state to get position of
+ * @param px upon return contains position value
+ * @param py upon return contains position value
+ * Positions px/py are decimal percentages of
+ * graph width/height from left/top. 
+ * Set px=py=0.5 if state cannot be found.
+ */
+void
+SkillGuiGraphDrawingArea::get_state_position(std::string state_name, double &px, double &py)
+{
+  px = 0.5;
+  py = 0.5;
+}
+
+/** Update __translation_x and __translation_y
+ *  for state following animation.
+ */
+void
+SkillGuiGraphDrawingArea::update_translations()
+{
+  timeval now;
+  gettimeofday(&now, NULL);
+  double now_time = now.tv_sec + now.tv_usec/1000000;
+  
+  if (__follow_active_state) {
+    double px, py;
+    get_state_position(__active_state, px, py);
+    Gtk::Allocation alloc = get_allocation();
+    __translation_x_setpoint = alloc.get_width()/2  - px*__bbw*__scale;
+    __translation_y_setpoint = alloc.get_height()/2 - py*__bbh*__scale + __bbh * __scale;
+    
+    double d, dx, dy;
+    dx = __translation_x_setpoint - __translation_x;
+    dy = __translation_y_setpoint - __translation_y;
+    d = sqrt(pow(dx,2) + pow(dy,2));
+    double v = 0.0;
+    if (d < 0.05*__speed_ramp_distance) {
+      // At goal, don't moving
+      v = 0;
+      __translation_x = __translation_x_setpoint;
+      __translation_y = __translation_y_setpoint;
+    } else if (d < __speed_ramp_distance) {
+      // Approaching goal, slow down
+      v = __speed_max*(1-d/__speed_ramp_distance);
+    } else if (__speed < __speed_max) {
+      // Starting toward goal, speed up
+      v = __speed + 30;
+    } else {
+      // Moving towards goal, keep going
+      v = __speed;
+    }
+    // Set new translations
+    if ( d <= v*(now_time - __last_update_time) ) {
+      __translation_x = __translation_x_setpoint;
+      __translation_y = __translation_y_setpoint;
+      __speed = 0;
+    } else {
+      __translation_x = (dx/d)*v*(now_time - __last_update_time) + __translation_x;
+      __translation_y = (dy/d)*v*(now_time - __last_update_time) + __translation_y;
+      __speed = v;
+    }
+    if (false) {
+      __translation_x = __translation_x_setpoint;
+      __translation_y = __translation_y_setpoint;
+      __speed = 0;
+    }
+  }
+  __last_update_time = now_time;
+}
