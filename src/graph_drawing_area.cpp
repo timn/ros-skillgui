@@ -398,6 +398,23 @@ SkillGuiGraphDrawingArea::save_dotfile(const char *filename)
 }
 
 
+/** Enable/disable active state following.
+ * @param follow_active_state true to enable active state following, false otherwise
+ * @return true if follow_active_state is enabled now, false if it is disabled.
+ */
+bool
+SkillGuiGraphDrawingArea::set_follow_active_state(bool follow_active_state)
+{
+  if (follow_active_state) {
+    __follow_active_state = true;
+  } else {
+    __follow_active_state = false;
+  }
+  //printf("follow_active_state: '%s'\n", (__follow_active_state)?"true":"false");
+  return __follow_active_state;
+}
+
+
 /** Enable/disable recording.
  * @param recording true to enable recording, false otherwise
  * @return true if recording is enabled now, false if it is disabled.

@@ -118,6 +118,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   refxml->get_widget("tb_zoomreset", tb_zoomreset);
   refxml->get_widget("tb_graphdir", tb_graphdir);
   refxml->get_widget("tb_graphcolored", tb_graphcolored);
+  refxml->get_widget("tb_followactivestate", tb_followactivestate);
   refxml->get_widget("mi_graphdir_title", mi_graphdir);
   refxml->get_widget("mi_top_bottom", mi_top_bottom);
   refxml->get_widget("mi_bottom_top", mi_bottom_top);
@@ -145,6 +146,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   tb_zoomreset->set_homogeneous(false);
   tb_graphdir->set_homogeneous(false);
   tb_graphcolored->set_homogeneous(false);
+  tb_followactivestate->set_homogeneous(false);
 
   __sks_list = Gtk::ListStore::create(__sks_record);
   cbe_skillstring->set_model(__sks_list);
@@ -215,6 +217,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 #endif
   tb_graphdir->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_clicked));
   tb_graphcolored->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphcolor_toggled));
+  tb_followactivestate->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_followactivestate_toggled));
 #ifdef USE_PAPYRUS
   tb_graphsave->signal_clicked().connect(sigc::mem_fun(*pvp_graph, &SkillGuiGraphViewport::save));
   tb_zoomin->signal_clicked().connect(sigc::mem_fun(*pvp_graph, &SkillGuiGraphViewport::zoom_in));
@@ -276,15 +279,18 @@ SkillGuiGtkWindow::on_config_changed()
   }
 
 #ifdef GLIBMM_EXCEPTIONS_ENABLED
-  bool continuous = __gconf->get_bool(GCONF_PREFIX"/continuous_exec");
-  bool colored    = __gconf->get_bool(GCONF_PREFIX"/graph_colored");
+  bool continuous        = __gconf->get_bool(GCONF_PREFIX"/continuous_exec");
+  bool colored           = __gconf->get_bool(GCONF_PREFIX"/graph_colored");
+  bool followactivestate = __gconf->get_bool(GCONF_PREFIX"/follow_active_state");
 #else
   std::auto_ptr<Glib::Error> error;
-  bool continuous = __gconf->get_bool(GCONF_PREFIX"/continuous_exec", error);
-  bool colored    = __gconf->get_bool(GCONF_PREFIX"/graph_colored", error);
+  bool continuous        = __gconf->get_bool(GCONF_PREFIX"/continuous_exec", error);
+  bool colored           = __gconf->get_bool(GCONF_PREFIX"/graph_colored", error);
+  bool followactivestate = __gconf->get_bool(GCONF_PREFIX"/follow_active_state", error);
 #endif
   but_continuous->set_active(continuous);
   tb_graphcolored->set_active(colored);
+  tb_followactivestate->set_active(followactivestate);
 #endif
 }
 
@@ -815,6 +821,21 @@ SkillGuiGtkWindow::on_graphcolor_toggled()
   } else if (tb_skiller->get_active() && __srv_graph_color_skiller.exists()) {
     printf("Calling skiller\n");
     __srv_graph_color_skiller.call(srvr);
+  }
+#endif
+}
+
+void
+SkillGuiGtkWindow::on_followactivestate_toggled()
+{
+#ifdef USE_PAPYRUS
+#else
+  bool follow_active_state = tb_followactivestate->get_active();
+#ifdef HAVE_GCONFMM
+  __gconf->set(GCONF_PREFIX"/follow_active_state", follow_active_state);
+#endif
+  if (gda->set_follow_active_state(follow_active_state) != follow_active_state) {
+    tb_followactivestate->set_active(!follow_active_state);
   }
 #endif
 }

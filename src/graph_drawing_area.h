@@ -48,6 +48,8 @@ class SkillGuiGraphDrawingArea
   void zoom_fit();
   void zoom_reset();
 
+  bool set_follow_active_state(bool follow_active_state);
+  
   void set_graph_fsm(std::string fsm_name);
   void set_graph(std::string graph);
 
@@ -107,6 +109,7 @@ class SkillGuiGraphDrawingArea
   double __last_mouse_y;
 
   bool __scale_override;
+  bool __follow_active_state;
   bool __update_graph;
 
 
