@@ -66,7 +66,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   ~SkillGuiGtkWindow();
 
  private:
-  void update_graph(std::string &graph_name, std::string &dotgraph, std::string &active_state);
+  void update_graph(std::string &graph_name, std::string &dotgraph);
 
   void on_config_changed();
   void on_contexec_toggled();

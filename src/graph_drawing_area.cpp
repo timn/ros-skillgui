@@ -146,20 +146,6 @@ SkillGuiGraphDrawingArea::set_graph_fsm(std::string fsm_name)
 }
 
 
-/** Set graph's active state name.
- * @param active_state name of active state
- */
-void
-SkillGuiGraphDrawingArea::set_active_state(std::string active_state)
-{
-  if ( __update_graph ) {
-    __active_state = active_state;
-  } else {
-    __nonupd_active_state = active_state;
-  }
-}
-
-
 /** Set graph.
  * @param graph string representation of the current graph in the dot language.
  */

@@ -651,7 +651,7 @@ SkillGuiGtkWindow::on_skdbg_data_changed()
           __skdbg_if->msgq_enqueue(sgm);
         }
       } else {
-        update_graph(__skdbg_if->graph_fsm(), __skdbg_if->graph(), std::string(""));
+        update_graph(__skdbg_if->graph_fsm(), __skdbg_if->graph());
       }
 
       switch (__skdbg_if->graph_dir()) {
@@ -728,14 +728,13 @@ SkillGuiGtkWindow::on_graphupd_clicked()
 
 
 void
-SkillGuiGtkWindow::update_graph(std::string &graph_name, std::string &dotgraph, std::string &active_state)
+SkillGuiGtkWindow::update_graph(std::string &graph_name, std::string &dotgraph)
 {
 #ifdef USE_PAPYRUS
   pvp_graph->set_graph_fsm(graph_name);
   pvp_graph->set_graph(dotgraph);
   pvp_graph->render();
 #else
-  gda->set_active_state(active_state);
   gda->set_graph_fsm(graph_name);
   gda->set_graph(dotgraph);
 #endif
@@ -835,9 +834,7 @@ SkillGuiGtkWindow::on_followactivestate_toggled()
 #ifdef HAVE_GCONFMM
   __gconf->set(GCONF_PREFIX"/follow_active_state", follow_active_state);
 #endif
-  if (gda->set_follow_active_state(follow_active_state) != follow_active_state) {
-    tb_followactivestate->set_active(!follow_active_state);
-  }
+  gda->set_follow_active_state(follow_active_state);
 #endif
 }
 
@@ -886,18 +883,16 @@ SkillGuiGtkWindow::on_graph_changed()
 
   std::string graph_name = "";
   std::string dotgraph = "";
-  std::string active_state = "";
 
   if (! msg) {
     // clear
-    update_graph(graph_name, dotgraph, active_state);
+    update_graph(graph_name, dotgraph);
     return;
   }
 
   graph_name = msg->name;
   dotgraph = msg->dotgraph;
-  active_state = msg->active_state;
-  update_graph(graph_name, dotgraph, active_state);
+  update_graph(graph_name, dotgraph);
 
   switch (msg->direction) {
   case skiller::Graph::GRAPH_DIR_TOP_BOTTOM:
