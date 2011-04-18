@@ -407,7 +407,10 @@ SkillGuiGtkWindow::on_stop_clicked()
   }
 #else
   if (! __gh.isExpired()) {
-    __gh.cancel();
+    CommState comm_state = __gh.getCommState();
+    if (comm_state.state_ != CommState::DONE) {
+      __gh.cancel();
+    }
   }
 #endif
 }
@@ -914,6 +917,7 @@ SkillGuiGtkWindow::ros_exec_transition_cb(actionlib::ClientGoalHandle<skiller::E
   if (comm_state_.state_ == CommState::DONE) {
     printf("State: %i\n", gh.getTerminalState().state_);
     switch(gh.getTerminalState().state_) {
+    case TerminalState::LOST: break; // do not change anything
     case TerminalState::SUCCEEDED:
       __throbber->stop_anim();
       __throbber->set_stock(Gtk::Stock::APPLY);
