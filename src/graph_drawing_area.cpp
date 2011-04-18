@@ -38,16 +38,17 @@ SkillGuiGraphDrawingArea::SkillGuiGraphDrawingArea()
   add_events(Gdk::SCROLL_MASK | Gdk::BUTTON_MOTION_MASK);
 
   __gvc = gvContext();
+  __graph = NULL;
 
   __graph_fsm = "";
-  __graph = "";
+  __graph_dot = "";
 
   __bbw = __bbh = __pad_x = __pad_y = 0.0;
   __translation_x = __translation_y = 0.0;
   __scale = 1.0;
   __speed = 0.0;
-  __speed_max = 100.0;
-  __speed_ramp_distance = 100.0;
+  __speed_max = 80.0;
+  __speed_ramp_distance = 80.0;
   __translation_x_setpoint = __translation_y_setpoint = 0.0;
   __scale_override = false;
   __update_graph = true;
@@ -107,6 +108,10 @@ SkillGuiGraphDrawingArea::SkillGuiGraphDrawingArea()
 
 SkillGuiGraphDrawingArea::~SkillGuiGraphDrawingArea()
 {
+  if (__graph) {
+    gvFreeLayout(__gvc, __graph);
+    agclose(__graph);
+  }
   gvFreeContext(__gvc);
   //delete __fcd;
   delete __fcd_save;
@@ -153,7 +158,8 @@ void
 SkillGuiGraphDrawingArea::set_graph(std::string graph)
 {
   if ( __update_graph ) {
-    __graph = graph;
+    __graph_dot = graph;
+    layout_graph();
     queue_draw();
   } else {
     __nonupd_graph = graph;
@@ -392,9 +398,8 @@ SkillGuiGraphDrawingArea::set_update_graph(bool update)
     if ( __graph_fsm != __nonupd_graph_fsm ) {
       __scale_override = false;
     }
-    __graph        = __nonupd_graph;
+    __graph_dot        = __nonupd_graph;
     __graph_fsm    = __nonupd_graph_fsm;
-    __active_state = __nonupd_active_state;
     queue_draw();
   }
   __update_graph = update;
@@ -406,7 +411,7 @@ SkillGuiGraphDrawingArea::save_dotfile(const char *filename)
 {
   FILE *f = fopen(filename, "w");
   if (f) {
-    if (fwrite(__graph.c_str(), __graph.length(), 1, f) != 1) {
+    if (fwrite(__graph_dot.c_str(), __graph_dot.length(), 1, f) != 1) {
       // bang, ignored
       printf("Failed to write dot file '%s'\n", filename);
     }
@@ -427,7 +432,6 @@ SkillGuiGraphDrawingArea::set_follow_active_state(bool follow_active_state)
   } else {
     __follow_active_state = false;
   }
-  printf("follow_active_state: '%s'\n", (__follow_active_state)?"true":"false");
   return __follow_active_state;
 }
 
@@ -499,12 +503,8 @@ SkillGuiGraphDrawingArea::save()
 	  __scale = 1.0;
 	  __scale_override = true;
 
-	  Agraph_t *g = agmemread((char *)__graph.c_str());
-	  if (g) {
-	    gvLayout(__gvc, g, (char *)"dot");
-	    gvRender(__gvc, g, (char *)"skillguicairo", NULL);
-	    gvFreeLayout(__gvc, g);
-	    agclose(g);
+	  if (__graph) {
+	    gvRender(__gvc, __graph, (char *)"skillguicairo", NULL);
 	  }
 
 	  if (write_to_png) {
@@ -543,7 +543,7 @@ SkillGuiGraphDrawingArea::open()
   int result = __fcd_open->run();
   if (result == Gtk::RESPONSE_OK) {
     __update_graph = false;
-    __graph = "";
+    __graph_dot = "";
     char *basec = strdup(__fcd_open->get_filename().c_str());
     char *basen = basename(basec);
     __graph_fsm = basen;
@@ -554,7 +554,7 @@ SkillGuiGraphDrawingArea::open()
       char tmp[4096];
       size_t s;
       if ((s = fread(tmp, 1, 4096, f)) > 0) {
-        __graph.append(tmp, s);
+        __graph_dot.append(tmp, s);
       }
     }
     fclose(f);
@@ -589,12 +589,11 @@ SkillGuiGraphDrawingArea::on_expose_event(GdkEventExpose* event)
     __cairo->set_source_rgb(1, 1, 1);
     __cairo->paint();
 
-    Agraph_t *g = agmemread((char *)__graph.c_str());
-    if (g) {
-      gvLayout(__gvc, g, (char *)"dot");
-      gvRender(__gvc, g, (char *)"skillguicairo", NULL);
-      gvFreeLayout(__gvc, g);
-      agclose(g);
+    if (__graph) {
+      Glib::Timer t;
+      gvRender(__gvc, __graph, (char *)"skillguicairo", NULL);
+      t.stop();
+      printf("Rendering took %f seconds\n", t.elapsed());
     }
 
     __cairo.clear();
@@ -650,18 +649,61 @@ SkillGuiGraphDrawingArea::on_motion_notify_event(GdkEventMotion *event)
 
 /** Get position of a state in the graph.
  * @param state state to get position of
- * @param px upon return contains position value
- * @param py upon return contains position value
+ * @param px upon successful return contains X position value
+ * @param py upon succesful return contains Y position value
  * Positions px/py are decimal percentages of
  * graph width/height from left/top. 
- * Set px=py=0.5 if state cannot be found.
+ * @return true if node has been found and px/py have been set, false otherwise
  */
-void
-SkillGuiGraphDrawingArea::get_state_position(std::string state_name, double &px, double &py)
+bool
+SkillGuiGraphDrawingArea::get_state_position(std::string state_name,
+					     double &px, double &py)
 {
-  px = 0.5;
-  py = 0.5;
+  if (! __graph) {
+    return false;
+  }
+
+  for (node_t *n = agfstnode(__graph); n; n = agnxtnode(__graph, n)) {
+    const char *name = agnameof(n);
+    pointf nodepos = ND_coord(n);
+
+    if (state_name == name) {
+      boxf bb = GD_bb(__graph);
+      double bb_width  = bb.UR.x - bb.LL.x;
+      double bb_height = bb.UR.y - bb.LL.y;
+
+      px =       nodepos.x / bb_width;
+      py = 1. - (nodepos.y / bb_height);
+
+      return true;
+    }
+  }
+
+  return false;
 }
+
+/** Determine the current active state.
+ * Note that there might be multiple active states if there are sub-fsms. It will
+ * only consider the active state of the top-fsm for now.
+ * @return the current active state
+ */
+std::string
+SkillGuiGraphDrawingArea::get_active_state()
+{
+  if (! __graph) {
+    return "";
+  }
+
+  for (node_t *n = agfstnode(__graph); n; n = agnxtnode(__graph, n)) {
+    const char *actattr = agget(n, (char *)"active");
+    if (actattr && (strcmp(actattr, "true") == 0) ) {
+      return agnameof(n);
+    }
+  }
+
+  return "";
+}
+
 
 /** Update __translation_x and __translation_y
  *  for state following animation.
@@ -675,40 +717,47 @@ SkillGuiGraphDrawingArea::update_translations()
   
   if (__follow_active_state) {
     double px, py;
-    get_state_position(__active_state, px, py);
+    std::string active_state = get_active_state();
+    if (! get_state_position(active_state, px, py)) {
+      px = py = 0.5;
+    }
     Gtk::Allocation alloc = get_allocation();
     __translation_x_setpoint = alloc.get_width()/2  - px*__bbw*__scale;
     __translation_y_setpoint = alloc.get_height()/2 - py*__bbh*__scale + __bbh * __scale;
     
-    double d, dx, dy;
+    float d, dx, dy;
     dx = __translation_x_setpoint - __translation_x;
     dy = __translation_y_setpoint - __translation_y;
     d = sqrt(pow(dx,2) + pow(dy,2));
-    double v = 0.0;
-    if (d < 0.05*__speed_ramp_distance) {
+    float v = 0.0;
+    if (d < 0.05 * __speed_ramp_distance) {
       // At goal, don't moving
       v = 0;
       __translation_x = __translation_x_setpoint;
       __translation_y = __translation_y_setpoint;
     } else if (d < __speed_ramp_distance) {
       // Approaching goal, slow down
-      v = __speed_max*(1-d/__speed_ramp_distance);
+      v = __speed_max * (1 - d / __speed_ramp_distance);
     } else if (__speed < __speed_max) {
       // Starting toward goal, speed up
-      v = __speed + 30;
+      v = __speed + 10;
     } else {
       // Moving towards goal, keep going
       v = __speed;
     }
     // Set new translations
-    if ( d <= v*(now_time - __last_update_time) ) {
+    //printf("d=%f  v=%f  dx=%f  dy=%f\n", d, v, dx, dy);
+    if ( d <= v * (now_time - __last_update_time) ) {
       __translation_x = __translation_x_setpoint;
       __translation_y = __translation_y_setpoint;
       __speed = 0;
     } else {
-      __translation_x = (dx/d)*v*(now_time - __last_update_time) + __translation_x;
-      __translation_y = (dy/d)*v*(now_time - __last_update_time) + __translation_y;
+      __translation_x =
+	(dx / d) * v * (now_time - __last_update_time) + __translation_x;
+      __translation_y =
+	(dy / d) * v * (now_time - __last_update_time) + __translation_y;
       __speed = v;
+      queue_draw();
     }
     if (false) {
       __translation_x = __translation_x_setpoint;
@@ -717,4 +766,18 @@ SkillGuiGraphDrawingArea::update_translations()
     }
   }
   __last_update_time = now_time;
+}
+
+
+void
+SkillGuiGraphDrawingArea::layout_graph()
+{
+  if (__graph) {
+    gvFreeLayout(__gvc, __graph);
+    agclose(__graph);
+  }
+  __graph = agmemread((char *)__graph_dot.c_str());
+  if (__graph) {
+    gvLayout(__gvc, __graph, (char *)"dot");
+  }
 }

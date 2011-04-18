@@ -65,7 +65,6 @@ class SkillGuiGraphDrawingArea
   double get_scale();
   void   get_translation(double &tx, double &ty);
   void   update_translations();
-  void   get_state_position(std::string state_name, double &px, double &py);
   void   get_dimensions(double &width, double &height);
   void   get_pad(double &pad_x, double &pad_y);
   Cairo::RefPtr<Cairo::Context> get_cairo();
@@ -83,6 +82,9 @@ class SkillGuiGraphDrawingArea
 
  private:
   void save_dotfile(const char *filename);
+  void layout_graph();
+  std::string get_active_state();
+  bool get_state_position(std::string state_name, double &px, double &py);
 
  private:
   Cairo::RefPtr<Cairo::Context> __cairo;
@@ -97,8 +99,9 @@ class SkillGuiGraphDrawingArea
   sigc::signal<void> __signal_update_disabled;
 
   GVC_t *__gvc;
+  graph_t  *__graph;
 
-  std::string __graph;
+  std::string __graph_dot;
   std::string __graph_fsm;
   std::string __active_state;
   std::string __nonupd_graph;
