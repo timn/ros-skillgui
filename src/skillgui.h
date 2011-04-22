@@ -120,6 +120,7 @@ class SkillGuiGtkWindow : public Gtk::Window
 #endif
 
   Gtk::Toolbar           *toolbar;
+  Gtk::ToolItem          *tb_throbber;
   Gtk::ToolButton        *tb_connection;
   Gtk::ToolButton        *tb_exit;
   Gtk::SeparatorToolItem *tb_sep;
@@ -136,6 +137,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   Gtk::ScrolledWindow    *scw_graph;
   Gtk::Notebook          *ntb_tabs;
   Gtk::DrawingArea       *drw_graph;
+  Gtk::Toolbar           *tb_fsmgraph;
   Gtk::ToggleToolButton  *tb_skiller;
   Gtk::ToggleToolButton  *tb_agent;
   Gtk::ComboBoxText      *cb_graphlist;

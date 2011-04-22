@@ -89,6 +89,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   refxml->get_widget_derived("trv_plugins",  __trv_plugins);
 #endif
   refxml->get_widget_derived("img_throbber", __throbber);
+  refxml->get_widget("tb_throbber", tb_throbber);
   refxml->get_widget("toolbar", toolbar);
   refxml->get_widget("tb_connection", tb_connection);
   refxml->get_widget("tb_sep", tb_sep);
@@ -106,6 +107,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   refxml->get_widget("scw_graph", scw_graph);
   //refxml->get_widget("drw_graph", drw_graph);
   refxml->get_widget("ntb_tabs", ntb_tabs);
+  refxml->get_widget("tb_fsmgraph", tb_fsmgraph);
   refxml->get_widget("tb_skiller", tb_skiller);
   refxml->get_widget("tb_agent", tb_agent);
   refxml->get_widget("tb_graphlist", tb_graphlist);
@@ -126,8 +128,12 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   refxml->get_widget("mi_left_right", mi_left_right);
   refxml->get_widget("mi_right_left", mi_right_left);
 
+  // This hack is required because setting expanding in Glade-3 does not
+  // have the same effect of right-aligning the throbber
   Gtk::SeparatorToolItem *spacesep;
   refxml->get_widget("tb_spacesep", spacesep);
+  spacesep->set_expand();
+  refxml->get_widget("tb_fsmgraph_spacesep", spacesep);
   spacesep->set_expand();
 
   Gtk::Label *mi_graphdir_label = dynamic_cast<Gtk::Label *>(mi_graphdir->get_child());
@@ -164,6 +170,8 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   but_exec->set_sensitive(true);
   but_stop->set_sensitive(true);
   cbe_skillstring->set_sensitive(true);
+  toolbar->remove(*tb_throbber);
+  tb_fsmgraph->append(*tb_throbber);
 #endif
 
   if (ntb_tabs->get_n_pages() == 1) {
