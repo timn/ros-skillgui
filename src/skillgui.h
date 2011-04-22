@@ -119,8 +119,10 @@ class SkillGuiGtkWindow : public Gtk::Window
   fawkes::InterfaceDispatcher  *__agdbg_ifd;
 #endif
 
+  Gtk::Toolbar           *toolbar;
   Gtk::ToolButton        *tb_connection;
   Gtk::ToolButton        *tb_exit;
+  Gtk::SeparatorToolItem *tb_sep;
   Gtk::Button            *but_exec;
   Gtk::Button            *but_stop;
   Gtk::ToggleButton      *but_continuous;

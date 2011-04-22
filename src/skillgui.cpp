@@ -89,7 +89,9 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   refxml->get_widget_derived("trv_plugins",  __trv_plugins);
 #endif
   refxml->get_widget_derived("img_throbber", __throbber);
+  refxml->get_widget("toolbar", toolbar);
   refxml->get_widget("tb_connection", tb_connection);
+  refxml->get_widget("tb_sep", tb_sep);
   refxml->get_widget("but_continuous", but_continuous);
   refxml->get_widget("but_clearlog", but_clearlog);
   refxml->get_widget("tb_exit", tb_exit);
@@ -158,12 +160,15 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 #else
   ntb_tabs->remove_page(0);
   ntb_tabs->remove_page(-1);
-  tb_connection->hide();
-  tb_controller->hide();
+  toolbar->hide();
   but_exec->set_sensitive(true);
   but_stop->set_sensitive(true);
   cbe_skillstring->set_sensitive(true);
 #endif
+
+  if (ntb_tabs->get_n_pages() == 1) {
+    ntb_tabs->set_show_tabs(false);
+  }
 
 #ifdef USE_PAPYRUS
   pvp_graph = Gtk::manage(new SkillGuiGraphViewport());

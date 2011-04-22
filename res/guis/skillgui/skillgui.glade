@@ -10,8 +10,9 @@
     <child>
       <widget class="GtkVBox" id="vbox1">
         <property name="visible">True</property>
+        <property name="orientation">vertical</property>
         <child>
-          <widget class="GtkToolbar" id="toolbar1">
+          <widget class="GtkToolbar" id="toolbar">
             <property name="visible">True</property>
             <property name="toolbar_style">icons</property>
             <property name="icon_size">0</property>
@@ -36,7 +37,7 @@
               </packing>
             </child>
             <child>
-              <widget class="GtkSeparatorToolItem" id="toolbutton1">
+              <widget class="GtkSeparatorToolItem" id="tb_sep">
                 <property name="visible">True</property>
               </widget>
               <packing>
