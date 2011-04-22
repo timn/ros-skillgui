@@ -365,35 +365,35 @@ SkillGuiGtkWindow::on_exec_clicked()
 			      boost::bind(&SkillGuiGtkWindow::ros_exec_feedback_cb, this, _1, _2));
 #endif
     Gtk::TreeModel::Children children = __sks_list->children();
-    bool ok = true;
     if ( ! children.empty() ) {
       size_t num = 0;
       Gtk::TreeIter i = children.begin();
-      while (ok && (i != children.end())) {
-	if ( num >= 9 ) {
-	  i = __sks_list->erase(i);
-	} else {
-	  Gtk::TreeModel::Row row = *i;
-	  ok = (row[__sks_record.skillstring] != sks);
-	  ++num;
-	  ++i;
-	}
+      while ( i != children.end() ) {
+        if ( num >= 9 ) {
+          i = __sks_list->erase(i);
+        } else {
+          Gtk::TreeModel::Row row = *i;
+          if (row[__sks_record.skillstring] == sks) {
+            i = __sks_list->erase(i);
+          } else {
+            ++num;
+            ++i;
+          }
+        }
       }
     }
-    if (ok) {
-      Gtk::TreeModel::Row row  = *__sks_list->prepend();
-      row[__sks_record.skillstring] = sks;
+    Gtk::TreeModel::Row row  = *__sks_list->prepend();
+    row[__sks_record.skillstring] = sks;
       
-      std::list<Glib::ustring> l;
-      for (Gtk::TreeIter i = children.begin(); i != children.end(); ++i) {
-	Gtk::TreeModel::Row row = *i;
-	l.push_back(row[__sks_record.skillstring]);
-      }
+    std::list<Glib::ustring> l;
+    for (Gtk::TreeIter i = children.begin(); i != children.end(); ++i) {
+      Gtk::TreeModel::Row row = *i;
+      l.push_back(row[__sks_record.skillstring]);
+    }
 
 #ifdef HAVE_GCONFMM
-      __gconf->set_string_list(GCONF_PREFIX"/command_history", l);
+    __gconf->set_string_list(GCONF_PREFIX"/command_history", l);
 #endif
-    }
   }
 }
 
