@@ -648,7 +648,7 @@ SkillGuiGraphDrawingArea::on_motion_notify_event(GdkEventMotion *event)
 
 
 /** Get position of a state in the graph.
- * @param state state to get position of
+ * @param state_name name of state to get position of
  * @param px upon successful return contains X position value
  * @param py upon succesful return contains Y position value
  * Positions px/py are decimal percentages of

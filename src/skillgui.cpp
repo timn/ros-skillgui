@@ -840,8 +840,8 @@ SkillGuiGtkWindow::on_followactivestate_toggled()
 
 #ifndef USE_ROS
 void
-SkillGuiGtkWindow::send_graphdir_message(SkillerDebugInterface *iface,
-					 SkillerDebugInterface::GraphDirectionEnum gd)
+SkillGuiGtkWindow::send_graphdir_message(fawkes::SkillerDebugInterface *iface,
+					 fawkes::SkillerDebugInterface::GraphDirectionEnum gd)
 {
   try {
     if (iface) {
@@ -863,7 +863,7 @@ SkillGuiGtkWindow::send_graphdir_message(SkillerDebugInterface *iface,
 }
 
 void
-SkillGuiGtkWindow::on_graphdir_changed(SkillerDebugInterface::GraphDirectionEnum gd)
+SkillGuiGtkWindow::on_graphdir_changed(fawkes::SkillerDebugInterface::GraphDirectionEnum gd)
 {
   if (tb_agent->get_active()) {
     send_graphdir_message(__agdbg_if, gd);
