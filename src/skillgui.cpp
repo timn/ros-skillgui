@@ -291,6 +291,7 @@ SkillGuiGtkWindow::on_config_changed()
   but_continuous->set_active(continuous);
   tb_graphcolored->set_active(colored);
   tb_followactivestate->set_active(followactivestate);
+  on_followactivestate_toggled();
 #endif
 }
 

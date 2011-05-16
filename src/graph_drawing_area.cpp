@@ -47,8 +47,8 @@ SkillGuiGraphDrawingArea::SkillGuiGraphDrawingArea()
   __translation_x = __translation_y = 0.0;
   __scale = 1.0;
   __speed = 0.0;
-  __speed_max = 80.0;
-  __speed_ramp_distance = 80.0;
+  __speed_max = 100.0;
+  __speed_ramp_distance = 30.0;
   __translation_x_setpoint = __translation_y_setpoint = 0.0;
   __scale_override = false;
   __update_graph = true;
@@ -272,7 +272,6 @@ SkillGuiGraphDrawingArea::get_scale()
 void
 SkillGuiGraphDrawingArea::get_translation(double &tx, double &ty)
 {
-  update_translations();
   tx = __translation_x;
   ty = __translation_y;
 }
@@ -432,6 +431,7 @@ SkillGuiGraphDrawingArea::set_follow_active_state(bool follow_active_state)
   } else {
     __follow_active_state = false;
   }
+  queue_draw();
   return __follow_active_state;
 }
 
@@ -573,6 +573,7 @@ SkillGuiGraphDrawingArea::open()
 bool
 SkillGuiGraphDrawingArea::on_expose_event(GdkEventExpose* event)
 {
+  update_translations();
   // This is where we draw on the window
   Glib::RefPtr<Gdk::Window> window = get_window();
   if(window) {
@@ -593,7 +594,7 @@ SkillGuiGraphDrawingArea::on_expose_event(GdkEventExpose* event)
       Glib::Timer t;
       gvRender(__gvc, __graph, (char *)"skillguicairo", NULL);
       t.stop();
-      printf("Rendering took %f seconds\n", t.elapsed());
+      //printf("Rendering took %f seconds\n", t.elapsed());
     }
 
     __cairo.clear();
@@ -713,9 +714,9 @@ SkillGuiGraphDrawingArea::update_translations()
 {
   timeval now;
   gettimeofday(&now, NULL);
-  double now_time = now.tv_sec + now.tv_usec/1000000;
+  double now_time = now.tv_sec + now.tv_usec/1000000.0;
   
-  if (__follow_active_state) {
+  if (__follow_active_state and __scale_override) {
     double px, py;
     std::string active_state = get_active_state();
     if (! get_state_position(active_state, px, py)) {
@@ -725,10 +726,12 @@ SkillGuiGraphDrawingArea::update_translations()
     __translation_x_setpoint = alloc.get_width()/2  - px*__bbw*__scale;
     __translation_y_setpoint = alloc.get_height()/2 - py*__bbh*__scale + __bbh * __scale;
     
-    float d, dx, dy;
+    float d, dx, dy, dt;
     dx = __translation_x_setpoint - __translation_x;
     dy = __translation_y_setpoint - __translation_y;
     d = sqrt(pow(dx,2) + pow(dy,2));
+    dt = now_time - __last_update_time;
+    dt = (dt < 0.1) ? dt : 0.1;
     float v = 0.0;
     if (d < 0.05 * __speed_ramp_distance) {
       // At goal, don't moving
@@ -740,32 +743,37 @@ SkillGuiGraphDrawingArea::update_translations()
       v = __speed_max * (1 - d / __speed_ramp_distance);
     } else if (__speed < __speed_max) {
       // Starting toward goal, speed up
-      v = __speed + 10;
+      v = __speed + __speed_max * dt;
     } else {
       // Moving towards goal, keep going
       v = __speed;
     }
+
+    // Limit v to __speed_max
+    v = (v < __speed_max) ? v : __speed_max;
+
     // Set new translations
     //printf("d=%f  v=%f  dx=%f  dy=%f\n", d, v, dx, dy);
-    if ( d <= v * (now_time - __last_update_time) ) {
+    if ( d <= v * dt ) {
       __translation_x = __translation_x_setpoint;
       __translation_y = __translation_y_setpoint;
       __speed = 0;
     } else {
-      __translation_x =
-	(dx / d) * v * (now_time - __last_update_time) + __translation_x;
-      __translation_y =
-	(dy / d) * v * (now_time - __last_update_time) + __translation_y;
+      __translation_x = (dx / d) * v * dt + __translation_x;
+      __translation_y = (dy / d) * v * dt + __translation_y;
       __speed = v;
-      queue_draw();
     }
     if (false) {
       __translation_x = __translation_x_setpoint;
       __translation_y = __translation_y_setpoint;
       __speed = 0;
+      queue_draw();
+    }
+    __last_update_time = now_time;
+    if (__speed > 0) {
+      queue_draw();
     }
   }
-  __last_update_time = now_time;
 }
 
 
