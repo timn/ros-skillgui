@@ -51,6 +51,7 @@ namespace fawkes {
   class LogView;
   class Throbber;
   class PluginTreeView;
+  class NodemonTreeView;
 }
 
 #ifdef USE_PAPYRUS
@@ -187,6 +188,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   skiller::Graph::ConstPtr __graph_msg_agent;
   actionlib::ActionClient<skiller::ExecSkillAction> __ac_exec;
   actionlib::ClientGoalHandle<skiller::ExecSkillAction> __gh;
+  fawkes::NodemonTreeView  *__trv_nodemon;
 #else
   fawkes::SkillerInterface *__skiller_if;
   fawkes::SkillerDebugInterface *__skdbg_if;

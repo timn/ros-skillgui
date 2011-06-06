@@ -22,6 +22,7 @@
  */
 
 #include "skillgui.h"
+
 #ifdef USE_PAPYRUS
 #  include "graph_viewport.h"
 #else
@@ -40,6 +41,7 @@
 #  include <gui_utils/plugin_tree_view.h>
 #else
 #  include "throbber.h"
+#  include "nodemon_treeview.h"
 #  include <functional>
 #endif
 
@@ -87,6 +89,8 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 #ifndef USE_ROS
   refxml->get_widget_derived("trv_log", __logview);
   refxml->get_widget_derived("trv_plugins",  __trv_plugins);
+#else
+  refxml->get_widget_derived("trv_nodemon", __trv_nodemon);
 #endif
   refxml->get_widget_derived("img_throbber", __throbber);
   refxml->get_widget("tb_throbber", tb_throbber);
