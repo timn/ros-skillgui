@@ -1,9 +1,13 @@
 
 /***************************************************************************
- *  nodemon_widget.cpp - Fawkes log view widget
+ *  nodemon_widget.cpp - SkillGUI node monitoring widget
  *
- *  Created: Mon Nov 02 13:19:03 2008
- *  Copyright  2008  Tim Niemueller [www.niemueller.de]
+ *  Created: Fri Jun 03 10:57:14 2011
+ *  Copyright  2011  Tim Niemueller [www.niemueller.de]
+ *             2011  SRI International
+ *             2011  Carnegie Mellon University
+ *             2011  Intel Labs Pittsburgh
+ *             2011  Columbia University in the City of New York
  *
  ****************************************************************************/
 
@@ -61,6 +65,12 @@ NodemonTreeView::NodemonTreeView(BaseObjectType* cobject,
   : Gtk::TreeView(cobject)
 {
   ctor();
+
+  refxml->get_widget("tb_nodemon_info", tb_nodemon_info);
+  refxml->get_widget("tb_nodemon_clear", tb_nodemon_clear);
+
+  tb_nodemon_info->signal_clicked().connect(sigc::mem_fun(*this, &NodemonTreeView::on_info_clicked));
+  tb_nodemon_clear->signal_clicked().connect(sigc::mem_fun(*this, &NodemonTreeView::on_clear_clicked));
 }
 #endif
 
@@ -75,11 +85,12 @@ NodemonTreeView::~NodemonTreeView()
 void
 NodemonTreeView::ctor()
 {
-
   __list = Gtk::ListStore::create(__record);
   __have_recently_added_path = false;
 
   __list->signal_row_inserted().connect(sigc::mem_fun(*this, &NodemonTreeView::on_row_inserted));
+
+  __list->set_sort_column(__record.nodename, Gtk::SORT_ASCENDING);
   set_model(__list);
   get_selection()->set_mode(Gtk::SELECTION_SINGLE);
 
@@ -126,6 +137,7 @@ NodemonTreeView::ctor()
   set_fixed_height_mode(true);
 
   signal_expose_event().connect_notify(sigc::mem_fun(*this, &NodemonTreeView::on_expose_notify));
+  get_selection()->signal_changed().connect(sigc::mem_fun(*this, &NodemonTreeView::on_selection_changed));
 
   // Setup and initialize from node cache
   __cache_path = "";
@@ -187,7 +199,7 @@ NodemonTreeView::set_enabled(bool enabled)
  */
 void
 NodemonTreeView::on_row_inserted(const Gtk::TreeModel::Path& path,
-			 const Gtk::TreeModel::iterator& iter)
+				 const Gtk::TreeModel::iterator& iter)
 {
   Gtk::TreeModel::Path vstart, vend;
   Gtk::TreeModel::Path prev = path;
@@ -215,10 +227,63 @@ NodemonTreeView::on_expose_notify(GdkEventExpose *event)
 }
 
 
+void
+NodemonTreeView::on_selection_changed()
+{
+  Gtk::TreeModel::iterator c = get_selection()->get_selected();
+  Gtk::TreeModel::Row row = *c;
+
+  nodemon_msgs::NodeState::ConstPtr last_msg = row[__record.last_msg];
+  if (last_msg &&
+      ((last_msg->state == nodemon_msgs::NodeState::ERROR) ||
+       (last_msg->state == nodemon_msgs::NodeState::FATAL) ||
+       (last_msg->state == nodemon_msgs::NodeState::WARNING) ||
+       (last_msg->state == nodemon_msgs::NodeState::RECOVERING)))
+  {
+    tb_nodemon_info->set_sensitive(true);
+  } else {
+    tb_nodemon_info->set_sensitive(false);
+  }
+}
+
+
+void
+NodemonTreeView::on_info_clicked()
+{
+  Gtk::TreeModel::iterator c = get_selection()->get_selected();
+  Gtk::TreeModel::Row row = *c;
+
+  nodemon_msgs::NodeState::ConstPtr last_msg = row[__record.last_msg];
+
+  if (last_msg &&
+      (last_msg->package != "") &&
+      (last_msg->machine_message != ""))
+  {
+    std::string cmd = "gnome-open http://localhost:10117/errorkb/" +
+      last_msg->package + "/" + last_msg->machine_message;
+    system(cmd.c_str());
+  }
+}
+
+
+void
+NodemonTreeView::on_clear_clicked()
+{
+  __list->clear();
+  if (__cache_path != "") {
+    FILE *f = fopen(__cache_path.c_str(), "w");
+    if (f != NULL) {
+      fclose(f);
+    }
+  }
+}
+
+
 bool
 NodemonTreeView::update()
 {
   Gtk::TreeModel::Children children = __list->children();
+  if (children.empty()) return true;
   Gtk::TreeModel::iterator c;
   for (c = children.begin(); c != children.end(); ++c) {
     Gtk::TreeModel::Row row = *c;

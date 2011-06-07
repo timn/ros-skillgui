@@ -3,7 +3,11 @@
  *  nodemon_widget.h - SkillGUI node monitoring widget
  *
  *  Created: Fri Jun 03 10:57:14 2011
- *  Copyright  2008-2011  Tim Niemueller [www.niemueller.de]
+ *  Copyright  2011  Tim Niemueller [www.niemueller.de]
+ *             2011  SRI International
+ *             2011  Carnegie Mellon University
+ *             2011  Intel Labs Pittsburgh
+ *             2011  Columbia University in the City of New York
  *
  ****************************************************************************/
 
@@ -62,6 +66,10 @@ class NodemonTreeView : public Gtk::TreeView
 			       const Gtk::TreeModel::iterator& iter);
   virtual void on_expose_notify(GdkEventExpose *event);
 
+  void on_selection_changed();
+  void on_clear_clicked();
+  void on_info_clicked();
+
  private:
   class NodemonRecord : public Gtk::TreeModelColumnRecord
   {
@@ -90,6 +98,9 @@ class NodemonTreeView : public Gtk::TreeView
   sigc::connection __timeout_connection;
   unsigned int __timeout;
 
+
+  Gtk::ToolButton *tb_nodemon_info;
+  Gtk::ToolButton *tb_nodemon_clear;
 };
 
 } // end namespace fawkes
