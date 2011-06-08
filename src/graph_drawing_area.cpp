@@ -47,8 +47,8 @@ SkillGuiGraphDrawingArea::SkillGuiGraphDrawingArea()
   __translation_x = __translation_y = 0.0;
   __scale = 1.0;
   __speed = 0.0;
-  __speed_max = 100.0;
-  __speed_ramp_distance = 30.0;
+  __speed_max = 200.0;
+  __speed_ramp_distance = 40.0;
   __translation_x_setpoint = __translation_y_setpoint = 0.0;
   __scale_override = false;
   __update_graph = true;
@@ -56,8 +56,10 @@ SkillGuiGraphDrawingArea::SkillGuiGraphDrawingArea()
 
   timeval now;
   gettimeofday(&now, NULL);
-  __last_update_time = now.tv_sec + now.tv_usec/1000000;
+  __last_update_time = (float)now.tv_sec + now.tv_usec/1000000.;
   
+  __mouse_motion = false;
+
   gvplugin_skillgui_cairo_setup(__gvc, this);
 
   __fcd_save = new Gtk::FileChooserDialog("Save Graph",
@@ -97,11 +99,12 @@ SkillGuiGraphDrawingArea::SkillGuiGraphDrawingArea()
   __fcd_open->set_filter(*__filter_dot);
 
   add_events(Gdk::SCROLL_MASK | Gdk::BUTTON_MOTION_MASK |
-	     Gdk::BUTTON_PRESS_MASK );
+	     Gdk::BUTTON_PRESS_MASK | Gdk::BUTTON_RELEASE_MASK );
 
 #ifndef GLIBMM_DEFAULT_SIGNAL_HANDLERS_ENABLED
   signal_expose_event().connect(sigc::mem_fun(*this, &SkillGuiGraphDrawingArea::on_expose_event));
   signal_button_press_event().connect(sigc::mem_fun(*this, &SkillGuiGraphDrawingArea::on_button_press_event));
+  signal_button_release_event().connect(sigc::mem_fun(*this, &SkillGuiGraphDrawingArea::on_button_release_event));
   signal_motion_notify_event().connect(sigc::mem_fun(*this, &SkillGuiGraphDrawingArea::on_motion_notify_event));
 #endif
 }
@@ -346,10 +349,12 @@ void
 SkillGuiGraphDrawingArea::zoom_reset()
 {
   Gtk::Allocation alloc = get_allocation();
-  __scale = 1.0;
-  __scale_override = true;
-  __translation_x = (alloc.get_width()  - __bbw) / 2.0 + __pad_x;
-  __translation_y = (alloc.get_height() - __bbh) / 2.0 + __bbh - __pad_y;
+  if (__scale != 1.0 || ! __scale_override) {
+    __scale = 1.0;
+    __scale_override = true;
+    __translation_x = (alloc.get_width()  - __bbw) / 2.0 + __pad_x;
+    __translation_y = (alloc.get_height() - __bbh) / 2.0 + __bbh - __pad_y;
+  }
   queue_draw();
 }
 
@@ -625,8 +630,22 @@ SkillGuiGraphDrawingArea::on_scroll_event(GdkEventScroll *event)
 bool
 SkillGuiGraphDrawingArea::on_button_press_event(GdkEventButton *event)
 {
+  __mouse_motion = true;
   __last_mouse_x = event->x;
   __last_mouse_y = event->y;
+  return true;
+}
+
+
+/** Button release event handler.
+ * @param event event data
+ * @return true
+ */
+bool
+SkillGuiGraphDrawingArea::on_button_release_event(GdkEventButton *event)
+{
+  __mouse_motion = false;
+  queue_draw();
   return true;
 }
 
@@ -714,9 +733,9 @@ SkillGuiGraphDrawingArea::update_translations()
 {
   timeval now;
   gettimeofday(&now, NULL);
-  double now_time = now.tv_sec + now.tv_usec/1000000.0;
+  double now_time = (float)now.tv_sec + now.tv_usec/1000000.;
   
-  if (__follow_active_state and __scale_override) {
+  if (__follow_active_state && __scale_override && !__mouse_motion) {
     double px, py;
     std::string active_state = get_active_state();
     if (! get_state_position(active_state, px, py)) {
@@ -730,30 +749,42 @@ SkillGuiGraphDrawingArea::update_translations()
     dx = __translation_x_setpoint - __translation_x;
     dy = __translation_y_setpoint - __translation_y;
     d = sqrt(pow(dx,2) + pow(dy,2));
-    dt = now_time - __last_update_time;
-    dt = (dt < 0.1) ? dt : 0.1;
-    float v = 0.0;
-    if (d < 0.05 * __speed_ramp_distance) {
-      // At goal, don't moving
+    dt = std::min(1.0, std::max(0.1, now_time - __last_update_time));
+    double v = 0.0;
+    //printf("d=%f  speed=%f\n", d, __speed);
+    if (d < 0.05) {
+      // At goal, don't move
       v = 0;
+      //printf("Reached, v=%f, d=%f, dx=%f, dy=%f, txs=%f tys=%f, tx=%f  ty=%f\n",
+      //     v, d, dx, dy, __translation_x_setpoint, __translation_y_setpoint,
+      //     __translation_x, __translation_y);
       __translation_x = __translation_x_setpoint;
       __translation_y = __translation_y_setpoint;
     } else if (d < __speed_ramp_distance) {
       // Approaching goal, slow down
-      v = __speed_max * (1 - d / __speed_ramp_distance);
+      v = __speed - __speed_max * dt;
+      //printf("Approaching, v=%f\n", v);
+    } else if (__speed == 0.0) {
+      // just starting
+      v = __speed_max / 10.;
+      dt = 0.1;
+      //printf("Starting, v=%f\n", v);
     } else if (__speed < __speed_max) {
       // Starting toward goal, speed up
       v = __speed + __speed_max * dt;
+      //printf("Speeding up, v=%f\n", v);
     } else {
       // Moving towards goal, keep going
       v = __speed;
+      //printf("Moving, v=%f\n", v);
     }
 
     // Limit v to __speed_max
-    v = (v < __speed_max) ? v : __speed_max;
+    v = std::min(v, __speed_max);
 
     // Set new translations
-    //printf("d=%f  v=%f  dx=%f  dy=%f\n", d, v, dx, dy);
+    //printf("d=%f  v=%f  dx=%f  dy=%f  dt=%f  dto=%f\n", d, v, dx, dy, dt,
+    //   now_time - __last_update_time);
     if ( d <= v * dt ) {
       __translation_x = __translation_x_setpoint;
       __translation_y = __translation_y_setpoint;
