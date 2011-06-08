@@ -48,7 +48,7 @@ namespace fawkes {
 #define SPINNER_DEFAULT_TIMEOUT         100
 
 
-/** @class Throbber <gui_utils/throbber.h>
+/** @class Throbber throbber.h
  * Simple Gtk Throbber/Spinner.
  * The throbber shows a spinning icon as a small image. It has been specifically
  * prepared to be used as a custom image Gtk::ToolItem in a Gtk::Toolbar.

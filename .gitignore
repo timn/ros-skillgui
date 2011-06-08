@@ -2,6 +2,7 @@
 *.so
 /bin/
 /build/
+/doc/
 /lib/
 /msg_gen/
 /msg/*/
@@ -10,3 +11,4 @@
 /src/*/msg/
 /srv_gen/
 /srv/*/
+/tmp/

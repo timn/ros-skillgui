@@ -122,6 +122,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   refxml->get_widget("tb_zoomreset", tb_zoomreset);
   refxml->get_widget("tb_graphdir", tb_graphdir);
   refxml->get_widget("tb_graphcolored", tb_graphcolored);
+  refxml->get_widget("tb_followactivestate", tb_followactivestate);
   refxml->get_widget("mi_graphdir_title", mi_graphdir);
   refxml->get_widget("mi_top_bottom", mi_top_bottom);
   refxml->get_widget("mi_bottom_top", mi_bottom_top);
@@ -153,6 +154,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   tb_zoomreset->set_homogeneous(false);
   tb_graphdir->set_homogeneous(false);
   tb_graphcolored->set_homogeneous(false);
+  tb_followactivestate->set_homogeneous(false);
 
   __sks_list = Gtk::ListStore::create(__sks_record);
   cbe_skillstring->set_model(__sks_list);
@@ -228,6 +230,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 #endif
   tb_graphdir->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_clicked));
   tb_graphcolored->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphcolor_toggled));
+  tb_followactivestate->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_followactivestate_toggled));
 #ifdef USE_PAPYRUS
   tb_graphsave->signal_clicked().connect(sigc::mem_fun(*pvp_graph, &SkillGuiGraphViewport::save));
   tb_zoomin->signal_clicked().connect(sigc::mem_fun(*pvp_graph, &SkillGuiGraphViewport::zoom_in));
@@ -289,15 +292,19 @@ SkillGuiGtkWindow::on_config_changed()
   }
 
 #ifdef GLIBMM_EXCEPTIONS_ENABLED
-  bool continuous = __gconf->get_bool(GCONF_PREFIX"/continuous_exec");
-  bool colored    = __gconf->get_bool(GCONF_PREFIX"/graph_colored");
+  bool continuous        = __gconf->get_bool(GCONF_PREFIX"/continuous_exec");
+  bool colored           = __gconf->get_bool(GCONF_PREFIX"/graph_colored");
+  bool followactivestate = __gconf->get_bool(GCONF_PREFIX"/follow_active_state");
 #else
   std::auto_ptr<Glib::Error> error;
-  bool continuous = __gconf->get_bool(GCONF_PREFIX"/continuous_exec", error);
-  bool colored    = __gconf->get_bool(GCONF_PREFIX"/graph_colored", error);
+  bool continuous        = __gconf->get_bool(GCONF_PREFIX"/continuous_exec", error);
+  bool colored           = __gconf->get_bool(GCONF_PREFIX"/graph_colored", error);
+  bool followactivestate = __gconf->get_bool(GCONF_PREFIX"/follow_active_state", error);
 #endif
   but_continuous->set_active(continuous);
   tb_graphcolored->set_active(colored);
+  tb_followactivestate->set_active(followactivestate);
+  on_followactivestate_toggled();
 #endif
 }
 
@@ -645,34 +652,34 @@ SkillGuiGtkWindow::on_skdbg_data_changed()
       __skdbg_if->read();
 
       if (strcmp(__skdbg_if->graph_fsm(), "LIST") == 0) {
-	Glib::ustring list = __skdbg_if->graph();
-	cb_graphlist->clear_items();
-	cb_graphlist->append_text(ACTIVE_SKILL);
-	cb_graphlist->set_active_text(ACTIVE_SKILL);
+        Glib::ustring list = __skdbg_if->graph();
+        cb_graphlist->clear_items();
+        cb_graphlist->append_text(ACTIVE_SKILL);
+        cb_graphlist->set_active_text(ACTIVE_SKILL);
 #if GLIBMM_MAJOR_VERSION > 2 || ( GLIBMM_MAJOR_VERSION == 2 && GLIBMM_MINOR_VERSION >= 14 )
-	Glib::RefPtr<Glib::Regex> regex = Glib::Regex::create("\n");
-	std::list<std::string> skills = regex->split(list);
-	for (std::list<std::string>::iterator i = skills.begin(); i != skills.end(); ++i) {
-	  if (*i != "")  cb_graphlist->append_text(*i);
-	}
+        Glib::RefPtr<Glib::Regex> regex = Glib::Regex::create("\n");
+        std::list<std::string> skills = regex->split(list);
+        for (std::list<std::string>::iterator i = skills.begin(); i != skills.end(); ++i) {
+          if (*i != "")  cb_graphlist->append_text(*i);
+        }
 #endif
-	if (__skdbg_if->has_writer()) {
-	  SkillerDebugInterface::SetGraphMessage *sgm = new SkillerDebugInterface::SetGraphMessage("ACTIVE");
-	  __skdbg_if->msgq_enqueue(sgm);
-	}
+        if (__skdbg_if->has_writer()) {
+          SkillerDebugInterface::SetGraphMessage *sgm = new SkillerDebugInterface::SetGraphMessage("ACTIVE");
+          __skdbg_if->msgq_enqueue(sgm);
+        }
       } else {
-	update_graph(__skdbg_if->graph_fsm(), __skdbg_if->graph());
+        update_graph(__skdbg_if->graph_fsm(), __skdbg_if->graph());
       }
 
       switch (__skdbg_if->graph_dir()) {
       case SkillerDebugInterface::GD_TOP_BOTTOM:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_DOWN); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_DOWN); break;
       case SkillerDebugInterface::GD_BOTTOM_TOP:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_UP); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_UP); break;
       case SkillerDebugInterface::GD_LEFT_RIGHT:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_FORWARD); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_FORWARD); break;
       case SkillerDebugInterface::GD_RIGHT_LEFT:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_BACK); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_BACK); break;
       }
     } catch (Exception &e) {
       // ignored
@@ -698,13 +705,13 @@ SkillGuiGtkWindow::on_agdbg_data_changed()
 
       switch (__agdbg_if->graph_dir()) {
       case SkillerDebugInterface::GD_TOP_BOTTOM:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_DOWN); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_DOWN); break;
       case SkillerDebugInterface::GD_BOTTOM_TOP:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_UP); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_UP); break;
       case SkillerDebugInterface::GD_LEFT_RIGHT:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_FORWARD); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_FORWARD); break;
       case SkillerDebugInterface::GD_RIGHT_LEFT:
-	tb_graphdir->set_stock_id(Gtk::Stock::GO_BACK); break;
+        tb_graphdir->set_stock_id(Gtk::Stock::GO_BACK); break;
       }
     } catch (Exception &e) {
       // ignored
@@ -835,10 +842,23 @@ SkillGuiGtkWindow::on_graphcolor_toggled()
 #endif
 }
 
+void
+SkillGuiGtkWindow::on_followactivestate_toggled()
+{
+#ifdef USE_PAPYRUS
+#else
+  bool follow_active_state = tb_followactivestate->get_active();
+#ifdef HAVE_GCONFMM
+  __gconf->set(GCONF_PREFIX"/follow_active_state", follow_active_state);
+#endif
+  gda->set_follow_active_state(follow_active_state);
+#endif
+}
+
 #ifndef USE_ROS
 void
-SkillGuiGtkWindow::send_graphdir_message(SkillerDebugInterface *iface,
-					 SkillerDebugInterface::GraphDirectionEnum gd)
+SkillGuiGtkWindow::send_graphdir_message(fawkes::SkillerDebugInterface *iface,
+					 fawkes::SkillerDebugInterface::GraphDirectionEnum gd)
 {
   try {
     if (iface) {
@@ -860,7 +880,7 @@ SkillGuiGtkWindow::send_graphdir_message(SkillerDebugInterface *iface,
 }
 
 void
-SkillGuiGtkWindow::on_graphdir_changed(SkillerDebugInterface::GraphDirectionEnum gd)
+SkillGuiGtkWindow::on_graphdir_changed(fawkes::SkillerDebugInterface::GraphDirectionEnum gd)
 {
   if (tb_agent->get_active()) {
     send_graphdir_message(__agdbg_if, gd);

@@ -23,6 +23,9 @@
 #ifndef __TOOLS_SKILLGUI_GRAPH_DRAWING_AREA_H_
 #define __TOOLS_SKILLGUI_GRAPH_DRAWING_AREA_H_
 
+#include <math.h>
+#include <sys/time.h>
+
 #include <gtkmm.h>
 
 #include <gvc.h>
@@ -48,7 +51,10 @@ class SkillGuiGraphDrawingArea
   void zoom_fit();
   void zoom_reset();
 
+  bool set_follow_active_state(bool follow_active_state);
+  
   void set_graph_fsm(std::string fsm_name);
+  void set_active_state(std::string active_state);
   void set_graph(std::string graph);
 
   void   set_bb(double bbw, double bbh);
@@ -58,6 +64,7 @@ class SkillGuiGraphDrawingArea
   bool   scale_override();
   double get_scale();
   void   get_translation(double &tx, double &ty);
+  void   update_translations();
   void   get_dimensions(double &width, double &height);
   void   get_pad(double &pad_x, double &pad_y);
   Cairo::RefPtr<Cairo::Context> get_cairo();
@@ -71,10 +78,14 @@ class SkillGuiGraphDrawingArea
   virtual bool on_expose_event(GdkEventExpose* event);
   virtual bool on_scroll_event(GdkEventScroll *event);
   virtual bool on_button_press_event(GdkEventButton *event);
+  virtual bool on_button_release_event(GdkEventButton *event);
   virtual bool on_motion_notify_event(GdkEventMotion *event);
 
  private:
   void save_dotfile(const char *filename);
+  void layout_graph();
+  std::string get_active_state();
+  bool get_state_position(std::string state_name, double &px, double &py);
 
  private:
   Cairo::RefPtr<Cairo::Context> __cairo;
@@ -89,11 +100,14 @@ class SkillGuiGraphDrawingArea
   sigc::signal<void> __signal_update_disabled;
 
   GVC_t *__gvc;
+  graph_t  *__graph;
 
+  std::string __graph_dot;
   std::string __graph_fsm;
-  std::string __graph;
+  std::string __active_state;
   std::string __nonupd_graph;
   std::string __nonupd_graph_fsm;
+  std::string __nonupd_active_state;
 
   double __bbw;
   double __bbh;
@@ -103,10 +117,19 @@ class SkillGuiGraphDrawingArea
   double __translation_y;
   double __scale;
 
+  double __last_update_time;
+  double __speed;
+  double __speed_max;
+  double __speed_ramp_distance;
+  double __translation_x_setpoint;
+  double __translation_y_setpoint;
+  
+  bool   __mouse_motion;
   double __last_mouse_x;
   double __last_mouse_y;
 
   bool __scale_override;
+  bool __follow_active_state;
   bool __update_graph;
 
 

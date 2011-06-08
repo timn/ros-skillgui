@@ -38,16 +38,27 @@ SkillGuiGraphDrawingArea::SkillGuiGraphDrawingArea()
   add_events(Gdk::SCROLL_MASK | Gdk::BUTTON_MOTION_MASK);
 
   __gvc = gvContext();
+  __graph = NULL;
 
   __graph_fsm = "";
-  __graph = "";
+  __graph_dot = "";
 
   __bbw = __bbh = __pad_x = __pad_y = 0.0;
   __translation_x = __translation_y = 0.0;
   __scale = 1.0;
+  __speed = 0.0;
+  __speed_max = 200.0;
+  __speed_ramp_distance = 40.0;
+  __translation_x_setpoint = __translation_y_setpoint = 0.0;
   __scale_override = false;
   __update_graph = true;
   __recording = false;
+
+  timeval now;
+  gettimeofday(&now, NULL);
+  __last_update_time = (float)now.tv_sec + now.tv_usec/1000000.;
+  
+  __mouse_motion = false;
 
   gvplugin_skillgui_cairo_setup(__gvc, this);
 
@@ -88,17 +99,22 @@ SkillGuiGraphDrawingArea::SkillGuiGraphDrawingArea()
   __fcd_open->set_filter(*__filter_dot);
 
   add_events(Gdk::SCROLL_MASK | Gdk::BUTTON_MOTION_MASK |
-	     Gdk::BUTTON_PRESS_MASK );
+	     Gdk::BUTTON_PRESS_MASK | Gdk::BUTTON_RELEASE_MASK );
 
 #ifndef GLIBMM_DEFAULT_SIGNAL_HANDLERS_ENABLED
   signal_expose_event().connect(sigc::mem_fun(*this, &SkillGuiGraphDrawingArea::on_expose_event));
   signal_button_press_event().connect(sigc::mem_fun(*this, &SkillGuiGraphDrawingArea::on_button_press_event));
+  signal_button_release_event().connect(sigc::mem_fun(*this, &SkillGuiGraphDrawingArea::on_button_release_event));
   signal_motion_notify_event().connect(sigc::mem_fun(*this, &SkillGuiGraphDrawingArea::on_motion_notify_event));
 #endif
 }
 
 SkillGuiGraphDrawingArea::~SkillGuiGraphDrawingArea()
 {
+  if (__graph) {
+    gvFreeLayout(__gvc, __graph);
+    agclose(__graph);
+  }
   gvFreeContext(__gvc);
   //delete __fcd;
   delete __fcd_save;
@@ -145,7 +161,8 @@ void
 SkillGuiGraphDrawingArea::set_graph(std::string graph)
 {
   if ( __update_graph ) {
-    __graph = graph;
+    __graph_dot = graph;
+    layout_graph();
     queue_draw();
   } else {
     __nonupd_graph = graph;
@@ -163,11 +180,11 @@ SkillGuiGraphDrawingArea::set_graph(std::string graph)
 		    tms.tm_year + 1900, tms.tm_mon + 1, tms.tm_mday,
 		    tms.tm_hour, tms.tm_min, tms.tm_sec, t.tv_nsec) != -1) {
 
-	//printf("Would record to filename %s\n", tmp);
-	save_dotfile(tmp);
-	free(tmp);
+          //printf("Would record to filename %s\n", tmp);
+          save_dotfile(tmp);
+          free(tmp);
       } else {
-	printf("Warning: Could not create file name for recording, skipping graph\n");
+        printf("Warning: Could not create file name for recording, skipping graph\n");
       }
     } else {
       printf("Warning: Could not time recording, skipping graph\n");
@@ -262,7 +279,6 @@ SkillGuiGraphDrawingArea::get_translation(double &tx, double &ty)
   ty = __translation_y;
 }
 
-
 /** Get dimensions
  * @param width upon return contains width
  * @param height upon return contains height
@@ -282,11 +298,15 @@ SkillGuiGraphDrawingArea::get_dimensions(double &width, double &height)
 void
 SkillGuiGraphDrawingArea::zoom_in()
 {
-  Gtk::Allocation alloc = get_allocation();
-  __scale += 0.1;
   __scale_override = true;
-  __translation_x = (alloc.get_width()  - __bbw * __scale) / 2.0;
-  __translation_y = (alloc.get_height() - __bbh * __scale) / 2.0 + __bbh * __scale;
+  Gtk::Allocation alloc = get_allocation();
+  double old_scale = __scale;
+  __scale /= 0.80;
+  double px, py;
+  px = (alloc.get_width()/2  - __translation_x                  ) / (old_scale * __bbw);
+  py = (alloc.get_height()/2 - __translation_y + __bbh * old_scale) / (old_scale * __bbh);
+  __translation_x = alloc.get_width()/2  - px*__bbw*__scale;
+  __translation_y = alloc.get_height()/2 - py*__bbh*__scale + __bbh * __scale;
   queue_draw();
 }
 
@@ -299,9 +319,13 @@ SkillGuiGraphDrawingArea::zoom_out()
   __scale_override = true;
   if ( __scale > 0.1 ) {
     Gtk::Allocation alloc = get_allocation();
-    __scale -= 0.1;
-    __translation_x = (alloc.get_width()  - __bbw * __scale) / 2.0;
-    __translation_y = (alloc.get_height() - __bbh * __scale) / 2.0 + __bbh * __scale;
+    double old_scale = __scale;
+    __scale *= 0.80;
+    double px, py;
+    px = (alloc.get_width()/2  - __translation_x                  ) / (old_scale * __bbw);
+    py = (alloc.get_height()/2 - __translation_y + __bbh * old_scale) / (old_scale * __bbh);
+    __translation_x = alloc.get_width()/2  - px*__bbw*__scale;
+    __translation_y = alloc.get_height()/2 - py*__bbh*__scale + __bbh * __scale;
     queue_draw();
   }
 }
@@ -325,10 +349,12 @@ void
 SkillGuiGraphDrawingArea::zoom_reset()
 {
   Gtk::Allocation alloc = get_allocation();
-  __scale = 1.0;
-  __scale_override = true;
-  __translation_x = (alloc.get_width()  - __bbw) / 2.0 + __pad_x;
-  __translation_y = (alloc.get_height() - __bbh) / 2.0 + __bbh - __pad_y;
+  if (__scale != 1.0 || ! __scale_override) {
+    __scale = 1.0;
+    __scale_override = true;
+    __translation_x = (alloc.get_width()  - __bbw) / 2.0 + __pad_x;
+    __translation_y = (alloc.get_height() - __bbh) / 2.0 + __bbh - __pad_y;
+  }
   queue_draw();
 }
 
@@ -376,8 +402,8 @@ SkillGuiGraphDrawingArea::set_update_graph(bool update)
     if ( __graph_fsm != __nonupd_graph_fsm ) {
       __scale_override = false;
     }
-    __graph     = __nonupd_graph;
-    __graph_fsm = __nonupd_graph_fsm;
+    __graph_dot        = __nonupd_graph;
+    __graph_fsm    = __nonupd_graph_fsm;
     queue_draw();
   }
   __update_graph = update;
@@ -389,12 +415,29 @@ SkillGuiGraphDrawingArea::save_dotfile(const char *filename)
 {
   FILE *f = fopen(filename, "w");
   if (f) {
-    if (fwrite(__graph.c_str(), __graph.length(), 1, f) != 1) {
+    if (fwrite(__graph_dot.c_str(), __graph_dot.length(), 1, f) != 1) {
       // bang, ignored
       printf("Failed to write dot file '%s'\n", filename);
     }
     fclose(f);
   }
+}
+
+
+/** Enable/disable active state following.
+ * @param follow_active_state true to enable active state following, false otherwise
+ * @return true if follow_active_state is enabled now, false if it is disabled.
+ */
+bool
+SkillGuiGraphDrawingArea::set_follow_active_state(bool follow_active_state)
+{
+  if (follow_active_state) {
+    __follow_active_state = true;
+  } else {
+    __follow_active_state = false;
+  }
+  queue_draw();
+  return __follow_active_state;
 }
 
 
@@ -465,12 +508,8 @@ SkillGuiGraphDrawingArea::save()
 	  __scale = 1.0;
 	  __scale_override = true;
 
-	  Agraph_t *g = agmemread((char *)__graph.c_str());
-	  if (g) {
-	    gvLayout(__gvc, g, (char *)"dot");
-	    gvRender(__gvc, g, (char *)"skillguicairo", NULL);
-	    gvFreeLayout(__gvc, g);
-	    agclose(g);
+	  if (__graph) {
+	    gvRender(__gvc, __graph, (char *)"skillguicairo", NULL);
 	  }
 
 	  if (write_to_png) {
@@ -509,7 +548,7 @@ SkillGuiGraphDrawingArea::open()
   int result = __fcd_open->run();
   if (result == Gtk::RESPONSE_OK) {
     __update_graph = false;
-    __graph = "";
+    __graph_dot = "";
     char *basec = strdup(__fcd_open->get_filename().c_str());
     char *basen = basename(basec);
     __graph_fsm = basen;
@@ -520,7 +559,7 @@ SkillGuiGraphDrawingArea::open()
       char tmp[4096];
       size_t s;
       if ((s = fread(tmp, 1, 4096, f)) > 0) {
-	__graph.append(tmp, s);
+        __graph_dot.append(tmp, s);
       }
     }
     fclose(f);
@@ -539,6 +578,7 @@ SkillGuiGraphDrawingArea::open()
 bool
 SkillGuiGraphDrawingArea::on_expose_event(GdkEventExpose* event)
 {
+  update_translations();
   // This is where we draw on the window
   Glib::RefPtr<Gdk::Window> window = get_window();
   if(window) {
@@ -555,17 +595,15 @@ SkillGuiGraphDrawingArea::on_expose_event(GdkEventExpose* event)
     __cairo->set_source_rgb(1, 1, 1);
     __cairo->paint();
 
-    Agraph_t *g = agmemread((char *)__graph.c_str());
-    if (g) {
-      gvLayout(__gvc, g, (char *)"dot");
-      gvRender(__gvc, g, (char *)"skillguicairo", NULL);
-      gvFreeLayout(__gvc, g);
-      agclose(g);
+    if (__graph) {
+      Glib::Timer t;
+      gvRender(__gvc, __graph, (char *)"skillguicairo", NULL);
+      t.stop();
+      //printf("Rendering took %f seconds\n", t.elapsed());
     }
 
     __cairo.clear();
-  }    
-
+  }
   return true;
 }
 
@@ -592,8 +630,22 @@ SkillGuiGraphDrawingArea::on_scroll_event(GdkEventScroll *event)
 bool
 SkillGuiGraphDrawingArea::on_button_press_event(GdkEventButton *event)
 {
+  __mouse_motion = true;
   __last_mouse_x = event->x;
   __last_mouse_y = event->y;
+  return true;
+}
+
+
+/** Button release event handler.
+ * @param event event data
+ * @return true
+ */
+bool
+SkillGuiGraphDrawingArea::on_button_release_event(GdkEventButton *event)
+{
+  __mouse_motion = false;
+  queue_draw();
   return true;
 }
 
@@ -614,3 +666,157 @@ SkillGuiGraphDrawingArea::on_motion_notify_event(GdkEventMotion *event)
   return true;
 }
 
+
+/** Get position of a state in the graph.
+ * @param state_name name of state to get position of
+ * @param px upon successful return contains X position value
+ * @param py upon succesful return contains Y position value
+ * Positions px/py are decimal percentages of
+ * graph width/height from left/top. 
+ * @return true if node has been found and px/py have been set, false otherwise
+ */
+bool
+SkillGuiGraphDrawingArea::get_state_position(std::string state_name,
+					     double &px, double &py)
+{
+  if (! __graph) {
+    return false;
+  }
+
+  for (node_t *n = agfstnode(__graph); n; n = agnxtnode(__graph, n)) {
+    const char *name = agnameof(n);
+    pointf nodepos = ND_coord(n);
+
+    if (state_name == name) {
+      boxf bb = GD_bb(__graph);
+      double bb_width  = bb.UR.x - bb.LL.x;
+      double bb_height = bb.UR.y - bb.LL.y;
+
+      px =       nodepos.x / bb_width;
+      py = 1. - (nodepos.y / bb_height);
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Determine the current active state.
+ * Note that there might be multiple active states if there are sub-fsms. It will
+ * only consider the active state of the top-fsm for now.
+ * @return the current active state
+ */
+std::string
+SkillGuiGraphDrawingArea::get_active_state()
+{
+  if (! __graph) {
+    return "";
+  }
+
+  for (node_t *n = agfstnode(__graph); n; n = agnxtnode(__graph, n)) {
+    const char *actattr = agget(n, (char *)"active");
+    if (actattr && (strcmp(actattr, "true") == 0) ) {
+      return agnameof(n);
+    }
+  }
+
+  return "";
+}
+
+
+/** Update __translation_x and __translation_y
+ *  for state following animation.
+ */
+void
+SkillGuiGraphDrawingArea::update_translations()
+{
+  timeval now;
+  gettimeofday(&now, NULL);
+  double now_time = (float)now.tv_sec + now.tv_usec/1000000.;
+  
+  if (__follow_active_state && __scale_override && !__mouse_motion) {
+    double px, py;
+    std::string active_state = get_active_state();
+    if (! get_state_position(active_state, px, py)) {
+      px = py = 0.5;
+    }
+    Gtk::Allocation alloc = get_allocation();
+    __translation_x_setpoint = alloc.get_width()/2  - px*__bbw*__scale;
+    __translation_y_setpoint = alloc.get_height()/2 - py*__bbh*__scale + __bbh * __scale;
+    
+    float d, dx, dy, dt;
+    dx = __translation_x_setpoint - __translation_x;
+    dy = __translation_y_setpoint - __translation_y;
+    d = sqrt(pow(dx,2) + pow(dy,2));
+    dt = std::min(1.0, std::max(0.1, now_time - __last_update_time));
+    double v = 0.0;
+    //printf("d=%f  speed=%f\n", d, __speed);
+    if (d < 0.05) {
+      // At goal, don't move
+      v = 0;
+      //printf("Reached, v=%f, d=%f, dx=%f, dy=%f, txs=%f tys=%f, tx=%f  ty=%f\n",
+      //     v, d, dx, dy, __translation_x_setpoint, __translation_y_setpoint,
+      //     __translation_x, __translation_y);
+      __translation_x = __translation_x_setpoint;
+      __translation_y = __translation_y_setpoint;
+    } else if (d < __speed_ramp_distance) {
+      // Approaching goal, slow down
+      v = __speed - __speed_max * dt;
+      //printf("Approaching, v=%f\n", v);
+    } else if (__speed == 0.0) {
+      // just starting
+      v = __speed_max / 10.;
+      dt = 0.1;
+      //printf("Starting, v=%f\n", v);
+    } else if (__speed < __speed_max) {
+      // Starting toward goal, speed up
+      v = __speed + __speed_max * dt;
+      //printf("Speeding up, v=%f\n", v);
+    } else {
+      // Moving towards goal, keep going
+      v = __speed;
+      //printf("Moving, v=%f\n", v);
+    }
+
+    // Limit v to __speed_max
+    v = std::min(v, __speed_max);
+
+    // Set new translations
+    //printf("d=%f  v=%f  dx=%f  dy=%f  dt=%f  dto=%f\n", d, v, dx, dy, dt,
+    //   now_time - __last_update_time);
+    if ( d <= v * dt ) {
+      __translation_x = __translation_x_setpoint;
+      __translation_y = __translation_y_setpoint;
+      __speed = 0;
+    } else {
+      __translation_x = (dx / d) * v * dt + __translation_x;
+      __translation_y = (dy / d) * v * dt + __translation_y;
+      __speed = v;
+    }
+    if (false) {
+      __translation_x = __translation_x_setpoint;
+      __translation_y = __translation_y_setpoint;
+      __speed = 0;
+      queue_draw();
+    }
+    __last_update_time = now_time;
+    if (__speed > 0) {
+      queue_draw();
+    }
+  }
+}
+
+
+void
+SkillGuiGraphDrawingArea::layout_graph()
+{
+  if (__graph) {
+    gvFreeLayout(__gvc, __graph);
+    agclose(__graph);
+  }
+  __graph = agmemread((char *)__graph_dot.c_str());
+  if (__graph) {
+    gvLayout(__gvc, __graph, (char *)"dot");
+  }
+}

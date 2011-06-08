@@ -320,6 +320,17 @@
                       </packing>
                     </child>
                     <child>
+                      <widget class="GtkToggleToolButton" id="tb_followactivestate">
+                        <property name="visible">True</property>
+                        <property name="stock_id">gtk-jump-to</property>
+                        <property name="active">True</property>
+                      </widget>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="homogeneous">True</property>
+                      </packing>
+                    </child>
+                    <child>
                       <widget class="GtkSeparatorToolItem" id="tb_fsmgraph_spacesep">
                         <property name="visible">True</property>
                         <property name="draw">False</property>

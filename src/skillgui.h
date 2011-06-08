@@ -76,6 +76,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   void on_recording_toggled();
   void on_exit_clicked();
   void on_graphcolor_toggled();
+  void on_followactivestate_toggled();
   void on_graphdir_clicked();
   void on_exec_clicked();
   void on_stop_clicked();
@@ -154,6 +155,7 @@ class SkillGuiGtkWindow : public Gtk::Window
 
   Gtk::MenuToolButton    *tb_graphdir;
   Gtk::ToggleToolButton  *tb_graphcolored;
+  Gtk::ToggleToolButton  *tb_followactivestate;
   Gtk::MenuItem          *mi_graphdir;
   Gtk::MenuItem          *mi_bottom_top;
   Gtk::MenuItem          *mi_top_bottom;
