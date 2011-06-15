@@ -84,7 +84,7 @@ class SkillGuiGraphDrawingArea
  private:
   void save_dotfile(const char *filename);
   void layout_graph();
-  std::string get_active_state();
+  std::string get_active_state(Agraph_t *graph);
   bool get_state_position(std::string state_name, double &px, double &py);
 
  private:

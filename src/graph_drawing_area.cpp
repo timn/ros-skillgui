@@ -704,21 +704,37 @@ SkillGuiGraphDrawingArea::get_state_position(std::string state_name,
 
 /** Determine the current active state.
  * Note that there might be multiple active states if there are sub-fsms. It will
- * only consider the active state of the top-fsm for now.
+ * only consider the active state of the bottom-fsm.
  * @return the current active state
  */
 std::string
-SkillGuiGraphDrawingArea::get_active_state()
+SkillGuiGraphDrawingArea::get_active_state(graph_t *graph)
 {
-  if (! __graph) {
+  if (! graph) {
     return "";
   }
 
-  for (node_t *n = agfstnode(__graph); n; n = agnxtnode(__graph, n)) {
-    const char *actattr = agget(n, (char *)"active");
-    if (actattr && (strcmp(actattr, "true") == 0) ) {
-      return agnameof(n);
-    }
+  // Loop through the nodes in the graph/subgraph and find the active node
+  for (node_t *n = agfstnode(graph); n; n = agnxtnode(graph, n)) {
+      const char *actattr = agget(n, (char *)"active");
+      if (actattr && (strcmp(actattr, "true") == 0) ) {
+          node_t *mn = agmetanode(graph);
+          graph_t *mg = mn->graph;
+          // Check to see if the node has an edge going into a subgraph
+          for (edge_t *me = agfstout(mg, mn); me; me = agnxtout(mg, me)) {
+              graph_t *subgraph = agusergraph(me->head);
+              for (edge_t *e = agfstout(graph, n); e; e = agnxtout(graph, e)) {
+                  for (node_t *subnode = agfstnode(subgraph); subnode; subnode = agnxtnode(subgraph, subnode)) {
+                      if (agnameof(subnode) == agnameof(e->head)) {
+                          // The node goes into a subgraph, recursively find and return the active subnode name
+                          return get_active_state(subgraph);
+                      }
+                  }
+              }
+          }
+          // The node has no subgraph, return the name of the active node
+          return agnameof(n);
+      }
   }
 
   return "";
@@ -737,7 +753,7 @@ SkillGuiGraphDrawingArea::update_translations()
   
   if (__follow_active_state && __scale_override && !__mouse_motion) {
     double px, py;
-    std::string active_state = get_active_state();
+    std::string active_state = get_active_state(__graph);
     if (! get_state_position(active_state, px, py)) {
       px = py = 0.5;
     }
