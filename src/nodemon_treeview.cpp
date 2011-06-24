@@ -54,25 +54,23 @@ NodemonTreeView::NodemonTreeView()
 }
 
 
-#ifdef HAVE_GLADEMM
 /** Constructor.
- * Special ctor to be used with Glade's get_widget_derived().
+ * Special ctor to be used with Gtk Builder's get_widget_derived().
  * @param cobject Gtk C object
- * @param refxml Glade's XML reference
+ * @param builder Gtk Builder
  */
 NodemonTreeView::NodemonTreeView(BaseObjectType* cobject,
-				 const Glib::RefPtr<Gnome::Glade::Xml>& refxml)
+				 const Glib::RefPtr<Gtk::Builder> &builder)
   : Gtk::TreeView(cobject)
 {
   ctor();
 
-  refxml->get_widget("tb_nodemon_info", tb_nodemon_info);
-  refxml->get_widget("tb_nodemon_clear", tb_nodemon_clear);
+  builder->get_widget("tb_nodemon_info", tb_nodemon_info);
+  builder->get_widget("tb_nodemon_clear", tb_nodemon_clear);
 
   tb_nodemon_info->signal_clicked().connect(sigc::mem_fun(*this, &NodemonTreeView::on_info_clicked));
   tb_nodemon_clear->signal_clicked().connect(sigc::mem_fun(*this, &NodemonTreeView::on_clear_clicked));
 }
-#endif
 
 
 /** Destructor. */

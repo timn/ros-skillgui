@@ -29,9 +29,6 @@
 #define __SKILLGUI_NODEMON_WIDGET_H_
 
 #include <gtkmm.h>
-#ifdef HAVE_GLADEMM
-#  include <libglademm/xml.h>
-#endif
 
 #include <nodemon_msgs/NodeState.h>
 #include <ros/node_handle.h>
@@ -45,10 +42,8 @@ class NodemonTreeView : public Gtk::TreeView
 {
  public:
   NodemonTreeView();
-#ifdef HAVE_GLADEMM
   NodemonTreeView(BaseObjectType* cobject,
-		const Glib::RefPtr<Gnome::Glade::Xml>& ref_glade);
-#endif
+		  const Glib::RefPtr<Gtk::Builder> &builder);
   ~NodemonTreeView();
 
   void set_nodehandle(ros::NodeHandle &nh);

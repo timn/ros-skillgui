@@ -56,14 +56,13 @@ namespace fawkes {
  * @author Tim Niemueller
  */
 
-#ifdef HAVE_GLADEMM
 /** Constructor.
- * Special ctor to be used with Glade's get_widget_derived().
+ * Special ctor to be used with Gtk Builder's get_widget_derived().
  * @param cobject Gtk C object
- * @param refxml Glade's XML reference
+ * @param builder Gtk Builder
  */
 Throbber::Throbber(BaseObjectType* cobject,
-		   const Glib::RefPtr<Gnome::Glade::Xml>& refxml)
+		   const Glib::RefPtr<Gtk::Builder> &builder)
   : Gtk::Image(cobject)
 {
   Gtk::Container *parent = get_parent();
@@ -75,7 +74,6 @@ Throbber::Throbber(BaseObjectType* cobject,
     ctor(Gtk::IconSize(Gtk::ICON_SIZE_BUTTON));
   }
 }
-#endif
 
 
 /** Constructor.

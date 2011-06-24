@@ -68,10 +68,10 @@ using namespace actionlib;
 
 /** Constructor.
  * @param cobject C base object
- * @param refxml Glade XML
+ * @param builder Gtk Builder to get widgets from
  */
 SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
-				 const Glib::RefPtr<Gnome::Glade::Xml> &refxml)
+				     const Glib::RefPtr<Gtk::Builder> &builder)
   : Gtk::Window(cobject), __rosnh(), __ac_exec(__rosnh, "/skiller/exec")
 {
 #ifndef USE_ROS
@@ -87,65 +87,58 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 #endif
 
 #ifndef USE_ROS
-  refxml->get_widget_derived("trv_log", __logview);
-  refxml->get_widget_derived("trv_plugins",  __trv_plugins);
+  builder->get_widget_derived("trv_log", __logview);
+  builder->get_widget_derived("trv_plugins",  __trv_plugins);
 #else
-  refxml->get_widget_derived("trv_nodemon", __trv_nodemon);
+  builder->get_widget_derived("trv_nodemon", __trv_nodemon);
 #endif
-  refxml->get_widget_derived("img_throbber", __throbber);
-  refxml->get_widget("tb_throbber", tb_throbber);
-  refxml->get_widget("toolbar", toolbar);
-  refxml->get_widget("tb_connection", tb_connection);
-  refxml->get_widget("tb_sep", tb_sep);
-  refxml->get_widget("but_continuous", but_continuous);
-  refxml->get_widget("but_clearlog", but_clearlog);
-  refxml->get_widget("tb_exit", tb_exit);
-  refxml->get_widget("cbe_skillstring", cbe_skillstring);
-  refxml->get_widget("but_exec", but_exec);
-  refxml->get_widget("but_stop", but_stop);
-  refxml->get_widget("lab_status", lab_status);
-  refxml->get_widget("lab_alive", lab_alive);
-  refxml->get_widget("lab_continuous", lab_continuous);
-  refxml->get_widget("lab_skillstring", lab_skillstring);
-  refxml->get_widget("lab_error", lab_error);
-  refxml->get_widget("scw_graph", scw_graph);
-  //refxml->get_widget("drw_graph", drw_graph);
-  refxml->get_widget("ntb_tabs", ntb_tabs);
-  refxml->get_widget("tb_fsmgraph", tb_fsmgraph);
-  refxml->get_widget("tb_skiller", tb_skiller);
-  refxml->get_widget("tb_agent", tb_agent);
-  refxml->get_widget("tb_graphlist", tb_graphlist);
-  refxml->get_widget("tb_controller", tb_controller);
-  refxml->get_widget("tb_graphsave", tb_graphsave);
-  refxml->get_widget("tb_graphopen", tb_graphopen);
-  refxml->get_widget("tb_graphupd", tb_graphupd);
-  refxml->get_widget("tb_graphrecord", tb_graphrecord);
-  refxml->get_widget("tb_zoomin", tb_zoomin);
-  refxml->get_widget("tb_zoomout", tb_zoomout);
-  refxml->get_widget("tb_zoomfit", tb_zoomfit);
-  refxml->get_widget("tb_zoomreset", tb_zoomreset);
-  refxml->get_widget("tb_graphdir", tb_graphdir);
-  refxml->get_widget("tb_graphcolored", tb_graphcolored);
-  refxml->get_widget("tb_followactivestate", tb_followactivestate);
-  refxml->get_widget("mi_graphdir_title", mi_graphdir);
-  refxml->get_widget("mi_top_bottom", mi_top_bottom);
-  refxml->get_widget("mi_bottom_top", mi_bottom_top);
-  refxml->get_widget("mi_left_right", mi_left_right);
-  refxml->get_widget("mi_right_left", mi_right_left);
+  builder->get_widget_derived("img_throbber", __throbber);
+  builder->get_widget("tb_throbber", tb_throbber);
+  builder->get_widget("toolbar", toolbar);
+  builder->get_widget("tb_connection", tb_connection);
+  builder->get_widget("tb_sep", tb_sep);
+  builder->get_widget("but_continuous", but_continuous);
+  builder->get_widget("but_clearlog", but_clearlog);
+  builder->get_widget("tb_exit", tb_exit);
+  builder->get_widget("but_exec", but_exec);
+  builder->get_widget("but_stop", but_stop);
+  builder->get_widget("lab_status", lab_status);
+  builder->get_widget("lab_alive", lab_alive);
+  builder->get_widget("lab_continuous", lab_continuous);
+  builder->get_widget("lab_skillstring", lab_skillstring);
+  builder->get_widget("lab_error", lab_error);
+  builder->get_widget("scw_graph", scw_graph);
+  //builder->get_widget("drw_graph", drw_graph);
+  builder->get_widget("ntb_tabs", ntb_tabs);
+  builder->get_widget("tb_fsmgraph", tb_fsmgraph);
+  builder->get_widget("tb_skiller", tb_skiller);
+  builder->get_widget("tb_agent", tb_agent);
+  builder->get_widget("tb_graphlist", tb_graphlist);
+  builder->get_widget("tb_controller", tb_controller);
+  builder->get_widget("tb_graphsave", tb_graphsave);
+  builder->get_widget("tb_graphopen", tb_graphopen);
+  builder->get_widget("tb_graphupd", tb_graphupd);
+  builder->get_widget("tb_graphrecord", tb_graphrecord);
+  builder->get_widget("tb_zoomin", tb_zoomin);
+  builder->get_widget("tb_zoomout", tb_zoomout);
+  builder->get_widget("tb_zoomfit", tb_zoomfit);
+  builder->get_widget("tb_zoomreset", tb_zoomreset);
+  builder->get_widget("tb_graphdir", tb_graphdir);
+  builder->get_widget("tb_graphcolored", tb_graphcolored);
+  builder->get_widget("tb_followactivestate", tb_followactivestate);
+  builder->get_widget("tab_execmon", tab_execmon);
 
   // This hack is required because setting expanding in Glade-3 does not
   // have the same effect of right-aligning the throbber
   Gtk::SeparatorToolItem *spacesep;
-  refxml->get_widget("tb_spacesep", spacesep);
+  builder->get_widget("tb_spacesep", spacesep);
   spacesep->set_expand();
-  refxml->get_widget("tb_fsmgraph_spacesep", spacesep);
+  builder->get_widget("tb_fsmgraph_spacesep", spacesep);
   spacesep->set_expand();
 
-  Gtk::Label *mi_graphdir_label = dynamic_cast<Gtk::Label *>(mi_graphdir->get_child());
-  if ( mi_graphdir_label ) {
-    mi_graphdir_label->set_markup("<b>Graph Direction</b>");
-  }
-  mi_graphdir->set_sensitive(false);
+  cbe_skillstring = Gtk::manage(new Gtk::ComboBoxEntry());
+  tab_execmon->attach(*cbe_skillstring, 0, 1, 1, 2);
+  cbe_skillstring->show();
 
   // This should be in the Glade file, but is not restored for some reason
   tb_graphsave->set_homogeneous(false);
@@ -225,10 +218,12 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   //cb_graphlist->signal_changed().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_skill_changed));
   //tb_graphupd->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphupd_clicked));
 #ifndef USE_ROS
+  /*
   mi_top_bottom->signal_activate().connect(sigc::bind(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_changed), SkillerDebugInterface::GD_TOP_BOTTOM));
   mi_bottom_top->signal_activate().connect(sigc::bind(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_changed), SkillerDebugInterface::GD_BOTTOM_TOP));
   mi_left_right->signal_activate().connect(sigc::bind(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_changed), SkillerDebugInterface::GD_LEFT_RIGHT));
   mi_right_left->signal_activate().connect(sigc::bind(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_changed), SkillerDebugInterface::GD_RIGHT_LEFT));
+  */
 #else
   __graph_changed.connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graph_changed));
 #endif
@@ -344,6 +339,7 @@ SkillGuiGtkWindow::on_exit_clicked()
 void
 SkillGuiGtkWindow::on_exec_clicked()
 {
+  //Glib::ustring sks = cbe_skillstring->get_active_text();
   Glib::ustring sks = "";
   if ( cbe_skillstring->get_active_row_number() == -1 ) {
     Gtk::Entry *entry = cbe_skillstring->get_entry();
