@@ -42,6 +42,7 @@
 #else
 #  include "throbber.h"
 #  include "nodemon_treeview.h"
+#  include "logview.h"
 #  include <functional>
 #endif
 
@@ -87,11 +88,11 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 #endif
 
 #ifndef USE_ROS
-  builder->get_widget_derived("trv_log", __logview);
   builder->get_widget_derived("trv_plugins",  __trv_plugins);
 #else
   builder->get_widget_derived("trv_nodemon", __trv_nodemon);
 #endif
+  builder->get_widget_derived("trv_log", __logview);
   builder->get_widget_derived("img_throbber", __throbber);
   builder->get_widget("tb_throbber", tb_throbber);
   builder->get_widget("toolbar", toolbar);
@@ -163,7 +164,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   __trv_plugins->set_gconf_prefix(GCONF_PREFIX);
 #  endif
 #else
-  ntb_tabs->remove_page(0);
+  //ntb_tabs->remove_page(0);
   ntb_tabs->remove_page(-1);
   toolbar->hide();
   but_exec->set_sensitive(true);
@@ -187,11 +188,13 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   gda->show();
 #endif
 
+#ifndef USE_ROS
   cb_graphlist = Gtk::manage(new Gtk::ComboBoxText());
   cb_graphlist->append_text(ACTIVE_SKILL);
   cb_graphlist->set_active_text(ACTIVE_SKILL);
   tb_graphlist->add(*cb_graphlist);
   cb_graphlist->show();
+#endif
 
   //ntb_tabs->set_current_page(1);
 
@@ -213,11 +216,11 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   tb_skiller->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_skdbg_data__changed));
   tb_agent->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_agdbg_data__changed));
 #endif
+#ifndef USE_ROS
   tb_skiller->signal_toggled().connect(sigc::bind(sigc::mem_fun(*cb_graphlist, &Gtk::ComboBoxText::set_sensitive),true));
   tb_agent->signal_toggled().connect(sigc::bind(sigc::mem_fun(*cb_graphlist, &Gtk::ComboBoxText::set_sensitive),false));
   //cb_graphlist->signal_changed().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_skill_changed));
   //tb_graphupd->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphupd_clicked));
-#ifndef USE_ROS
   /*
   mi_top_bottom->signal_activate().connect(sigc::bind(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_changed), SkillerDebugInterface::GD_TOP_BOTTOM));
   mi_bottom_top->signal_activate().connect(sigc::bind(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_changed), SkillerDebugInterface::GD_BOTTOM_TOP));
@@ -311,11 +314,11 @@ SkillGuiGtkWindow::on_config_changed()
 void
 SkillGuiGtkWindow::on_skill_changed()
 {
+#ifndef USE_ROS
   Glib::ustring skill = cb_graphlist->get_active_text();
   if ( skill == ACTIVE_SKILL ) {
     skill = "ACTIVE";
   }
-#ifndef USE_ROS
   SkillerDebugInterface::SetGraphMessage *sgm = new SkillerDebugInterface::SetGraphMessage(skill.c_str());
   __skdbg_if->msgq_enqueue(sgm);
 #endif
@@ -652,6 +655,7 @@ SkillGuiGtkWindow::on_skdbg_data_changed()
       __skdbg_if->read();
 
       if (strcmp(__skdbg_if->graph_fsm(), "LIST") == 0) {
+#ifndef USE_ROS
         Glib::ustring list = __skdbg_if->graph();
         cb_graphlist->clear_items();
         cb_graphlist->append_text(ACTIVE_SKILL);
@@ -667,6 +671,7 @@ SkillGuiGtkWindow::on_skdbg_data_changed()
           SkillerDebugInterface::SetGraphMessage *sgm = new SkillerDebugInterface::SetGraphMessage("ACTIVE");
           __skdbg_if->msgq_enqueue(sgm);
         }
+#endif
       } else {
         update_graph(__skdbg_if->graph_fsm(), __skdbg_if->graph());
       }

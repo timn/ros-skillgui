@@ -51,6 +51,7 @@ namespace fawkes {
   class Throbber;
   class PluginTreeView;
   class NodemonTreeView;
+  class RosLogView;
 }
 
 #ifdef USE_PAPYRUS
@@ -143,7 +144,9 @@ class SkillGuiGtkWindow : public Gtk::Window
   Gtk::Toolbar           *tb_fsmgraph;
   Gtk::ToggleToolButton  *tb_skiller;
   Gtk::ToggleToolButton  *tb_agent;
+#ifndef USE_ROS
   Gtk::ComboBoxText      *cb_graphlist;
+#endif
   Gtk::ToolItem          *tb_graphlist;
   Gtk::ToolButton        *tb_graphsave;
   Gtk::ToolButton        *tb_graphopen;
@@ -185,6 +188,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   actionlib::ActionClient<skiller::ExecSkillAction> __ac_exec;
   actionlib::ClientGoalHandle<skiller::ExecSkillAction> __gh;
   fawkes::NodemonTreeView  *__trv_nodemon;
+  fawkes::RosLogView       *__logview;
 #else
   fawkes::SkillerInterface *__skiller_if;
   fawkes::SkillerDebugInterface *__skdbg_if;
