@@ -151,6 +151,8 @@ NodemonTreeView::ctor()
     FILE *f = fopen(__cache_path.c_str(), "r");
     if (f != NULL) {
       char tmp[1024];
+
+      Glib::Mutex::Lock lock(__list_mutex);
       while (fgets(tmp, 1024, f) != NULL) {
 	tmp[strlen(tmp) - 1] = '\0'; // remove newline
 
@@ -174,6 +176,7 @@ NodemonTreeView::ctor()
 void
 NodemonTreeView::clear()
 {
+  Glib::Mutex::Lock lock(__list_mutex);
   __list->clear();
 }
 
@@ -267,6 +270,7 @@ NodemonTreeView::on_info_clicked()
 void
 NodemonTreeView::on_clear_clicked()
 {
+  Glib::Mutex::Lock lock(__list_mutex);
   __list->clear();
   if (__cache_path != "") {
     FILE *f = fopen(__cache_path.c_str(), "w");
@@ -280,6 +284,7 @@ NodemonTreeView::on_clear_clicked()
 bool
 NodemonTreeView::update()
 {
+  Glib::Mutex::Lock lock(__list_mutex);
   Gtk::TreeModel::Children children = __list->children();
   if (children.empty()) return true;
   Gtk::TreeModel::iterator c;
@@ -387,7 +392,7 @@ NodemonTreeView::add_node_to_cache(std::string nodename)
 void
 NodemonTreeView::node_state_cb(const nodemon_msgs::NodeState::ConstPtr &msg)
 {
-
+  Glib::Mutex::Lock lock(__list_mutex);
   Gtk::TreeModel::Children children = __list->children();
   Gtk::TreeModel::iterator c;
   Gtk::TreeModel::Row row;

@@ -82,6 +82,7 @@ class NodemonTreeView : public Gtk::TreeView
   NodemonRecord __record;
 
   Glib::RefPtr<Gtk::ListStore> __list;
+  Glib::Mutex                  __list_mutex;
 
   std::string           __dot_ros_dir;
   std::string           __cache_path;
