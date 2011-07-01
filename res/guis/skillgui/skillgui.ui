@@ -531,6 +531,9 @@
                 <property name="can_focus">False</property>
                 <property name="label" translatable="yes">FSM</property>
               </object>
+              <packing>
+                <property name="tab_fill">False</property>
+              </packing>
             </child>
             <child>
               <object class="GtkScrolledWindow" id="scw_log">
@@ -592,6 +595,7 @@
               </object>
               <packing>
                 <property name="position">1</property>
+                <property name="tab_fill">False</property>
               </packing>
             </child>
             <child>
