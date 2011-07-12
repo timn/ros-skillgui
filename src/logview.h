@@ -3,8 +3,11 @@
  *  logview.h - Fawkes log view widget
  *
  *  Created: Mon Nov 02 13:08:29 2008
- *  Copyright  2008  Tim Niemueller [www.niemueller.de]
- *
+ *  Copyright  2008-2011  Tim Niemueller [www.niemueller.de]
+ *             2011       SRI International
+ *             2011       Intel Labs Pittsburgh
+ *             2011       Carnegie Mellon University
+ *             2011       Columbia University
  ****************************************************************************/
 
 /*  This program is free software; you can redistribute it and/or modify

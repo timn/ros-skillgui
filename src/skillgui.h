@@ -3,9 +3,11 @@
  *  skillgui.h - Skill GUI
  *
  *  Created: Mon Nov 03 13:35:34 2008
- *  Copyright  2008-2010  Tim Niemueller [www.niemueller.de]
- *             2010       Carnegie Mellon University
- *             2010       Intel Labs Pittsburgh
+ *  Copyright  2008-2011  Tim Niemueller [www.niemueller.de]
+ *             2010-2011  Carnegie Mellon University
+ *             2010-2011  Intel Labs Pittsburgh
+ *             2011       SRI International
+ *             2011       Columbia University
  ****************************************************************************/
 
 /*  This program is free software; you can redistribute it and/or modify

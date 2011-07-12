@@ -3,8 +3,11 @@
  *  graph_drawing_area.cpp - Graph drawing area derived from Gtk::DrawingArea
  *
  *  Created: Wed Mar 18 10:40:00 2009
- *  Copyright  2008-2009  Tim Niemueller [www.niemueller.de]
- *
+ *  Copyright  2008-2011  Tim Niemueller [www.niemueller.de]
+ *             2010-2011  Intel Labs Pittsburgh
+ *             2010-2011  Carnegie Mellon University
+ *             2011       SRI International
+ *             2011       Columbia University
  ****************************************************************************/
 
 /*  This program is free software; you can redistribute it and/or modify
