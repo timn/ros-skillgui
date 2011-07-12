@@ -70,6 +70,8 @@ NodemonTreeView::NodemonTreeView(BaseObjectType* cobject,
 
   tb_nodemon_info->signal_clicked().connect(sigc::mem_fun(*this, &NodemonTreeView::on_info_clicked));
   tb_nodemon_clear->signal_clicked().connect(sigc::mem_fun(*this, &NodemonTreeView::on_clear_clicked));
+
+  __received_dispatcher.connect(sigc::mem_fun(*this, &NodemonTreeView::on_nodestate_received));
 }
 
 
@@ -392,6 +394,21 @@ NodemonTreeView::add_node_to_cache(std::string nodename)
 void
 NodemonTreeView::node_state_cb(const nodemon_msgs::NodeState::ConstPtr &msg)
 {
+  Glib::Mutex::Lock lock(__received_mutex);
+  __received_msgs.push(msg);
+  lock.release();
+  __received_dispatcher();
+}
+
+
+void
+NodemonTreeView::on_nodestate_received()
+{
+  Glib::Mutex::Lock received_lock(__received_mutex);
+  const nodemon_msgs::NodeState::ConstPtr msg = __received_msgs.front();
+  __received_msgs.pop();
+  received_lock.release();
+
   Glib::Mutex::Lock lock(__list_mutex);
   Gtk::TreeModel::Children children = __list->children();
   Gtk::TreeModel::iterator c;

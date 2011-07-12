@@ -33,6 +33,8 @@
 #include <nodemon_msgs/NodeState.h>
 #include <ros/node_handle.h>
 
+#include <queue>
+
 namespace fawkes {
 #if 0 /* just to make Emacs auto-indent happy */
 }
@@ -56,6 +58,7 @@ class NodemonTreeView : public Gtk::TreeView
   void add_node_to_cache(std::string nodename);
 
   void node_state_cb(const nodemon_msgs::NodeState::ConstPtr &msg);
+  void on_nodestate_received();
 
   virtual void on_row_inserted(const Gtk::TreeModel::Path& path,
 			       const Gtk::TreeModel::iterator& iter);
@@ -94,6 +97,9 @@ class NodemonTreeView : public Gtk::TreeView
   sigc::connection __timeout_connection;
   unsigned int __timeout;
 
+  Glib::Mutex __received_mutex;
+  std::queue<nodemon_msgs::NodeState::ConstPtr> __received_msgs;
+  Glib::Dispatcher __received_dispatcher;
 
   Gtk::ToolButton *tb_nodemon_info;
   Gtk::ToolButton *tb_nodemon_clear;
