@@ -433,9 +433,6 @@
                                     <property name="width_request">200</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
-                                    <child internal-child="selection">
-                                      <object class="GtkTreeSelection" id="treeview-selection2"/>
-                                    </child>
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
@@ -544,9 +541,6 @@
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="search_column">3</property>
-                    <child internal-child="selection">
-                      <object class="GtkTreeSelection" id="treeview-selection1"/>
-                    </child>
                   </object>
                 </child>
               </object>
@@ -599,6 +593,33 @@
               </packing>
             </child>
             <child>
+              <object class="GtkScrolledWindow" id="scw_errors">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <child>
+                  <object class="GtkTreeView" id="trv_errors">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="search_column">3</property>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel" id="label12">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">Errors</property>
+              </object>
+              <packing>
+                <property name="position">2</property>
+                <property name="tab_fill">False</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkScrolledWindow" id="scw_plugins">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
@@ -606,14 +627,11 @@
                   <object class="GtkTreeView" id="trv_plugins">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <child internal-child="selection">
-                      <object class="GtkTreeSelection" id="treeview-selection3"/>
-                    </child>
                   </object>
                 </child>
               </object>
               <packing>
-                <property name="position">2</property>
+                <property name="position">3</property>
               </packing>
             </child>
             <child type="tab">
@@ -623,7 +641,7 @@
                 <property name="label" translatable="yes">Plugins</property>
               </object>
               <packing>
-                <property name="position">2</property>
+                <property name="position">3</property>
                 <property name="tab_fill">False</property>
               </packing>
             </child>

@@ -321,17 +321,17 @@ NodemonTreeView::update()
 	break;
 
       case nodemon_msgs::NodeState::RECOVERING:
-	row[__record.state] = "\u26a0";
+	row[__record.state] = "\u267B";
 	row[__record.foreground] = Gdk::Color("#FF8000");
 	break;
 
       case nodemon_msgs::NodeState::ERROR:
-	row[__record.state] = "\u26a0";
+	row[__record.state] = "\u26A1";
 	row[__record.foreground] = Gdk::Color("#FF0000");
 	break;
 
       case nodemon_msgs::NodeState::WARNING:
-	row[__record.state] = "\u26a0";
+	row[__record.state] = "\u26A0";
 	row[__record.foreground] = Gdk::Color("#DD6D00");
 	break;
 

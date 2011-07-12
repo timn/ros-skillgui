@@ -54,6 +54,7 @@ namespace fawkes {
   class PluginTreeView;
   class NodemonTreeView;
   class RosLogView;
+  class RosErrorsTreeView;
 }
 
 #ifdef USE_PAPYRUS
@@ -191,6 +192,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   actionlib::ClientGoalHandle<skiller::ExecSkillAction> __gh;
   fawkes::NodemonTreeView  *__trv_nodemon;
   fawkes::RosLogView       *__logview;
+  fawkes::RosErrorsTreeView   *__trv_errors;
 #else
   fawkes::SkillerInterface *__skiller_if;
   fawkes::SkillerDebugInterface *__skdbg_if;

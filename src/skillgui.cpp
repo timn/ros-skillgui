@@ -45,6 +45,7 @@
 #  include "throbber.h"
 #  include "nodemon_treeview.h"
 #  include "logview.h"
+#  include "errors_treeview.h"
 #  include <functional>
 #endif
 
@@ -95,6 +96,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   builder->get_widget_derived("trv_nodemon", __trv_nodemon);
 #endif
   builder->get_widget_derived("trv_log", __logview);
+  builder->get_widget_derived("trv_errors", __trv_errors);
   builder->get_widget_derived("img_throbber", __throbber);
   builder->get_widget("tb_throbber", tb_throbber);
   builder->get_widget("toolbar", toolbar);
