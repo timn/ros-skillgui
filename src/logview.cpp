@@ -90,7 +90,7 @@ RosLogView::RosLogView(BaseObjectType* cobject,
   }
 
   signal_expose_event().connect_notify(sigc::mem_fun(*this, &RosLogView::on_expose_notify));
-  __signal_message_received.connect(sigc::mem_fun(*this, &RosLogView::on_logmsg_received));
+  __received_dispatcher.connect(sigc::mem_fun(*this, &RosLogView::on_logmsg_received));
 
   __sub_rosout = __rosnh.subscribe("/rosout_agg", 10,
 				   &RosLogView::ros_logmsg_cb, this);
@@ -156,13 +156,21 @@ RosLogView::on_expose_notify(GdkEventExpose *event)
 void
 RosLogView::ros_logmsg_cb(const LOG_MSGTYPE::ConstPtr &msg)
 {
-  __signal_message_received.emit(msg);
+  Glib::Mutex::Lock lock(__received_mutex);
+  __received_msgs.push(msg);
+  lock.release();
+  __received_dispatcher();
 }
 
 
 void
-RosLogView::on_logmsg_received(const LOG_MSGTYPE::ConstPtr msg)
+RosLogView::on_logmsg_received()
 {
+  Glib::Mutex::Lock lock(__received_mutex);
+  const LOG_MSGTYPE::ConstPtr msg = __received_msgs.front();
+  __received_msgs.pop();
+  lock.release();
+
   struct timeval t;
   t.tv_sec  = msg->header.stamp.sec;
   t.tv_usec = msg->header.stamp.nsec / 1000;

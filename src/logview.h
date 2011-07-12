@@ -41,6 +41,8 @@
 
 #include <ros/ros.h>
 
+#include <queue>
+
 namespace fawkes {
 #if 0 /* just to make Emacs auto-indent happy */
 }
@@ -64,7 +66,7 @@ class RosLogView
 			       const Gtk::TreeModel::iterator& iter);
   virtual void on_expose_notify(GdkEventExpose *event);
 
-  void on_logmsg_received(const LOG_MSGTYPE::ConstPtr msg);
+  void on_logmsg_received();
   void ros_logmsg_cb(const LOG_MSGTYPE::ConstPtr &msg);
 
  private:
@@ -84,13 +86,15 @@ class RosLogView
 
   Glib::RefPtr<Gtk::ListStore> __list;
 
-  sigc::signal<void, const LOG_MSGTYPE::ConstPtr> __signal_message_received;
-
   bool                  __have_recently_added_path;
   Gtk::TreeModel::Path  __recently_added_path;
 
   ros::NodeHandle __rosnh;
   ros::Subscriber __sub_rosout;
+
+  Glib::Mutex __received_mutex;
+  std::queue<LOG_MSGTYPE::ConstPtr> __received_msgs;
+  Glib::Dispatcher __received_dispatcher;
 };
 
 } // end namespace fawkes
