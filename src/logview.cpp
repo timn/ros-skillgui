@@ -92,7 +92,7 @@ RosLogView::RosLogView(BaseObjectType* cobject,
   signal_expose_event().connect_notify(sigc::mem_fun(*this, &RosLogView::on_expose_notify));
   __received_dispatcher.connect(sigc::mem_fun(*this, &RosLogView::on_logmsg_received));
 
-  __sub_rosout = __rosnh.subscribe("/rosout_agg", 10,
+  __sub_rosout = __rosnh.subscribe("/rosout_filtered", 10,
 				   &RosLogView::ros_logmsg_cb, this);
 }
 
