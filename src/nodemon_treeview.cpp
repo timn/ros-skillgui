@@ -308,6 +308,13 @@ NodemonTreeView::update()
       row[__record.state] = "\u2300";
       row[__record.foreground] = Gdk::Color("#888888");
 
+    } else if (timed_out &&
+               (last_msg->state == nodemon_msgs::NodeState::STOPPING))
+    {
+      // 231b  hourglass, unsupported in common fonts
+      row[__record.state] = "\u2198";
+      row[__record.foreground] = Gdk::Color("#888888");
+
     } else if (timed_out) {
       // 231b  hourglass, unsupported in common fonts
       row[__record.state] = "\u231a";
@@ -342,8 +349,18 @@ NodemonTreeView::update()
 
       case nodemon_msgs::NodeState::STOPPING:
 	row[__record.state] = "\u2198";
-	row[__record.foreground] = Gdk::Color("#444444");
+	row[__record.foreground] = Gdk::Color("#888888");
 	break;
+
+      case nodemon_msgs::NodeState::RUNNING:
+        if ((now - last_update).toSec() <= UPDATE_INTERVAL_SEC) {
+          row[__record.state] = "\u2665";
+          row[__record.foreground] = Gdk::Color("#000000");
+        } else {
+          row[__record.state] = " ";
+          row[__record.foreground] = Gdk::Color("#000000");
+        }
+        break;
 
       default:
 	row[__record.state] = " ";
@@ -357,6 +374,7 @@ NodemonTreeView::update()
 	row[__record.foreground] = Gdk::Color("#B20000");
       }
     }
+    /*
     if (last_msg && ((now - last_update).toSec() <= UPDATE_INTERVAL_SEC))
     {
       if ((last_msg->state == nodemon_msgs::NodeState::FATAL) || state_hang)
@@ -368,6 +386,7 @@ NodemonTreeView::update()
 	row[__record.foreground] = Gdk::Color("#000000");
       }
     }
+    */
 
   }
 
