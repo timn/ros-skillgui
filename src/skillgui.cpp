@@ -812,29 +812,45 @@ SkillGuiGtkWindow::on_skiller_data_changed()
     switch (__skiller_if->status()) {
     case SkillerInterface::S_INACTIVE:
       __throbber->stop_anim();
+#if GTK_VERSION_GE(2,20)
       stb_status->remove_all_messages();
+#else
+      stb_status->pop();
+#endif
       stb_status->push("S_INACTIVE");
       break;
     case SkillerInterface::S_FINAL:
       __throbber->stop_anim();
       __throbber->set_stock(Gtk::Stock::APPLY);
+#if GTK_VERSION_GE(2,20)
       stb_status->remove_all_messages();
+#else
+      stb_status->pop();
+#endif
       stb_status->push("S_FINAL");
       break;
     case SkillerInterface::S_RUNNING:
       __throbber->start_anim();
+#if GTK_VERSION_GE(2,20)
       stb_status->remove_all_messages();
+#else
+      stb_status->pop();
+#endif
       stb_status->push("S_RUNNING");
       break;
     case SkillerInterface::S_FAILED:
       __throbber->stop_anim();
       __throbber->set_stock(Gtk::Stock::DIALOG_WARNING);
+#if GTK_VERSION_GE(2,20)
       stb_status->remove_all_messages();
+#else
+      stb_status->pop();
+#endif
       stb_status->push("S_FAILED");
       break;
     }
 
-#if GTKMM_MAJOR_VERSION > 2 || ( GTKMM_MAJOR_VERSION == 2 && GTKMM_MINOR_VERSION >= 12 )
+#if GTK_VERSION_GE(2,12)
     stb_status->set_tooltip_text(__skiller_if->error());
 #endif
     //lab_continuous->set_text(__skiller_if->is_continuous() ? "Yes" : "No");
@@ -843,7 +859,7 @@ SkillGuiGtkWindow::on_skiller_data_changed()
     if ( __skiller_if->exclusive_controller() == __skiller_if->serial() ) {
       if ( tb_controller->get_stock_id() == Gtk::Stock::NO.id ) {
 	tb_controller->set_stock_id(Gtk::Stock::YES);
-#if GTKMM_MAJOR_VERSION > 2 || ( GTKMM_MAJOR_VERSION == 2 && GTKMM_MINOR_VERSION >= 12 )
+#if GTK_VERSION_GE(2,12)
 	tb_controller->set_tooltip_text("Release exclusive control");
 #endif
       }
@@ -852,7 +868,7 @@ SkillGuiGtkWindow::on_skiller_data_changed()
     } else {
       if ( tb_controller->get_stock_id() == Gtk::Stock::YES.id ) {
 	tb_controller->set_stock_id(Gtk::Stock::NO);
-#if GTKMM_MAJOR_VERSION > 2 || ( GTKMM_MAJOR_VERSION == 2 && GTKMM_MINOR_VERSION >= 12 )
+#if GTK_VERSION_GE(2,12)
 	tb_controller->set_tooltip_text("Gain exclusive control");
 #endif
       }
@@ -880,7 +896,7 @@ SkillGuiGtkWindow::on_skdbg_data_changed()
         cb_graphlist->clear_items();
         cb_graphlist->append_text(ACTIVE_SKILL);
         cb_graphlist->set_active_text(ACTIVE_SKILL);
-#if GLIBMM_MAJOR_VERSION > 2 || ( GLIBMM_MAJOR_VERSION == 2 && GLIBMM_MINOR_VERSION >= 14 )
+#if GTK_VERSION_GE(2,14)
         Glib::RefPtr<Glib::Regex> regex = Glib::Regex::create("\n");
         std::list<std::string> skills = regex->split(list);
         for (std::list<std::string>::iterator i = skills.begin(); i != skills.end(); ++i) {
@@ -1195,7 +1211,7 @@ SkillGuiGtkWindow::on_exec_goal_transition()
     case TerminalState::SUCCEEDED:
       __throbber->stop_anim();
       __throbber->set_stock(Gtk::Stock::APPLY);
-      stb_status->remove_all_messages();
+      stb_status->pop();
       stb_status->push("S_FINAL");
       break;
     default:
@@ -1203,17 +1219,17 @@ SkillGuiGtkWindow::on_exec_goal_transition()
       __throbber->set_stock(Gtk::Stock::DIALOG_WARNING);
 
       if (__exec_errmsg != "") {
-        stb_status->remove_all_messages();
+        stb_status->pop();
         stb_status->push("S_FAILED: " + __exec_errmsg);
       } else {
-        stb_status->remove_all_messages();
+        stb_status->pop();
         stb_status->push("S_FAILED");
       }
       break;
     }
   } else {
     __throbber->start_anim();
-    stb_status->remove_all_messages();
+    stb_status->pop();
     stb_status->push("S_RUNNING");
   }
 }
