@@ -104,6 +104,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   void ros_exec_feedback_cb(actionlib::ClientGoalHandle<skiller::ExecSkillAction> &gh,
 			    const skiller::ExecSkillFeedbackConstPtr &feedback);
   void on_graph_changed();
+  void on_exec_goal_transition();
 #endif
 
  private:
@@ -186,6 +187,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   ros::ServiceClient __srv_graph_color_agent;
   ros::ServiceClient __srv_graph_direction_agent;
   Glib::Dispatcher __graph_changed;
+  Glib::Dispatcher __exec_transition;
   skiller::Graph::ConstPtr __graph_msg_skiller;
   skiller::Graph::ConstPtr __graph_msg_agent;
   actionlib::ActionClient<skiller::ExecSkillAction> __ac_exec;
@@ -193,6 +195,9 @@ class SkillGuiGtkWindow : public Gtk::Window
   fawkes::NodemonTreeView  *__trv_nodemon;
   fawkes::RosLogView       *__logview;
   fawkes::RosErrorsTreeView   *__trv_errors;
+  actionlib::CommState     __exec_comm_state;
+  actionlib::TerminalState __exec_terminal_state;
+  Glib::ustring __exec_errmsg;
 #else
   fawkes::SkillerInterface *__skiller_if;
   fawkes::SkillerDebugInterface *__skdbg_if;

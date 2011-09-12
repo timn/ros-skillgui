@@ -76,7 +76,8 @@ using namespace actionlib;
  */
 SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 				     const Glib::RefPtr<Gtk::Builder> &builder)
-  : Gtk::Window(cobject), __rosnh(), __ac_exec(__rosnh, "/skiller/exec")
+  : Gtk::Window(cobject), __rosnh(), __ac_exec(__rosnh, "/skiller/exec"),
+    __exec_comm_state(actionlib::CommState::DONE), __exec_terminal_state(actionlib::TerminalState::LOST)
 {
 #ifndef USE_ROS
   bb = NULL;
@@ -233,6 +234,7 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   */
 #else
   __graph_changed.connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graph_changed));
+  __exec_transition.connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_exec_goal_transition));
 #endif
   tb_graphdir->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_clicked));
   tb_graphcolored->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphcolor_toggled));
@@ -954,11 +956,27 @@ SkillGuiGtkWindow::ros_agent_graphmsg_cb(const skiller::Graph::ConstPtr &msg)
 void
 SkillGuiGtkWindow::ros_exec_transition_cb(actionlib::ClientGoalHandle<skiller::ExecSkillAction> &gh)
 {
-  CommState comm_state_ = gh.getCommState();
-  printf("Transition to %i\n", comm_state_.state_);
-  if (comm_state_.state_ == CommState::DONE) {
-    printf("State: %i\n", gh.getTerminalState().state_);
-    switch(gh.getTerminalState().state_) {
+  __exec_comm_state = gh.getCommState();
+  if (__exec_comm_state == CommState::DONE) {
+    __exec_terminal_state = gh.getTerminalState().state_;
+    if (gh.getResult() != NULL) {
+      __exec_errmsg = gh.getResult()->errmsg;
+    } else {
+      __exec_errmsg = "";
+    }
+  }
+  gh.reset();
+  __exec_transition();
+}
+
+
+void
+SkillGuiGtkWindow::on_exec_goal_transition()
+{
+  //printf("Transition to %i\n", comm_state_.state_);
+  if (__exec_comm_state == CommState::DONE) {
+    //printf("State: %i\n", __exec_gh.getTerminalState().state_);
+    switch(__exec_terminal_state.state_) {
     case TerminalState::LOST: break; // do not change anything
     case TerminalState::SUCCEEDED:
       __throbber->stop_anim();
@@ -968,13 +986,14 @@ SkillGuiGtkWindow::ros_exec_transition_cb(actionlib::ClientGoalHandle<skiller::E
     default:
       __throbber->stop_anim();
       __throbber->set_stock(Gtk::Stock::DIALOG_WARNING);
-      lab_status->set_text("S_FAILED");
-      if (gh.getResult() != NULL) {
-	lab_error->set_text(gh.getResult()->errmsg);
+
+      if (__exec_errmsg != "") {
+	lab_error->set_text(__exec_errmsg);
+      } else {
+	lab_status->set_text("S_FAILED");
       }
       break;
     }
-    gh.reset();
   } else {
     __throbber->start_anim();
     lab_status->set_text("S_RUNNING");
