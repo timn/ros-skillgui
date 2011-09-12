@@ -86,6 +86,9 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   __agdbg_if = NULL;
 #endif
 
+  __quickie_row = 0;
+  __quickie_col = 1;
+
 #ifdef HAVE_GCONFMM
   __gconf = Gnome::Conf::Client::get_default_client();
   __gconf->add_dir(GCONF_PREFIX);
@@ -103,16 +106,11 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   builder->get_widget("toolbar", toolbar);
   builder->get_widget("tb_connection", tb_connection);
   builder->get_widget("tb_sep", tb_sep);
-  builder->get_widget("but_continuous", but_continuous);
   builder->get_widget("but_clearlog", but_clearlog);
   builder->get_widget("tb_exit", tb_exit);
   builder->get_widget("but_exec", but_exec);
   builder->get_widget("but_stop", but_stop);
-  builder->get_widget("lab_status", lab_status);
-  builder->get_widget("lab_alive", lab_alive);
-  builder->get_widget("lab_continuous", lab_continuous);
-  builder->get_widget("lab_skillstring", lab_skillstring);
-  builder->get_widget("lab_error", lab_error);
+  builder->get_widget("stb_status", stb_status);
   builder->get_widget("scw_graph", scw_graph);
   //builder->get_widget("drw_graph", drw_graph);
   builder->get_widget("ntb_tabs", ntb_tabs);
@@ -133,6 +131,18 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   builder->get_widget("tb_graphcolored", tb_graphcolored);
   builder->get_widget("tb_followactivestate", tb_followactivestate);
   builder->get_widget("tab_execmon", tab_execmon);
+
+  builder->get_widget("tab_quickies", tab_quickies);
+  builder->get_widget("but_addquick", but_addquick);
+  builder->get_widget("but_rmquick", but_rmquick);
+  builder->get_widget("but_editquick", but_editquick);
+  builder->get_widget("dlg_addquick", dlg_addquick);
+  builder->get_widget("ent_addquick_label", ent_addquick_label);
+  builder->get_widget("ent_addquick_skillstring", ent_addquick_skillstring);
+  builder->get_widget("dlg_editquick", dlg_editquick);
+  builder->get_widget("ent_editquick_label", ent_editquick_label);
+  builder->get_widget("ent_editquick_skillstring", ent_editquick_skillstring);
+
 
   // This hack is required because setting expanding in Glade-3 does not
   // have the same effect of right-aligning the throbber
@@ -212,7 +222,6 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   cbe_skillstring->get_entry()->signal_activate().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_exec_clicked));
   tb_exit->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_exit_clicked));
   but_stop->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_stop_clicked));
-  but_continuous->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_contexec_toggled));
   //but_clearlog->signal_clicked().connect(sigc::mem_fun(*__logview, &LogView::clear));
 #ifdef USE_ROS
   tb_skiller->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graph_changed));
@@ -270,7 +279,16 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 #ifdef HAVE_GCONFMM
   __gconf->signal_value_changed().connect(sigc::hide(sigc::hide(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_config_changed))));
   on_config_changed();
+  read_quickies();
+  but_addquick->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_addquick_clicked));
+  but_rmquick->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_rmquick_toggled));
+  but_editquick->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_editquick_toggled));
+#else
+  but_addquick->hide();
+  but_rmquick->hide();
+  but_editquick->hide();
 #endif
+
 }
 
 
@@ -300,16 +318,13 @@ SkillGuiGtkWindow::on_config_changed()
   }
 
 #ifdef GLIBMM_EXCEPTIONS_ENABLED
-  bool continuous        = __gconf->get_bool(GCONF_PREFIX"/continuous_exec");
   bool colored           = __gconf->get_bool(GCONF_PREFIX"/graph_colored");
   bool followactivestate = __gconf->get_bool(GCONF_PREFIX"/follow_active_state");
 #else
   std::auto_ptr<Glib::Error> error;
-  bool continuous        = __gconf->get_bool(GCONF_PREFIX"/continuous_exec", error);
   bool colored           = __gconf->get_bool(GCONF_PREFIX"/graph_colored", error);
   bool followactivestate = __gconf->get_bool(GCONF_PREFIX"/follow_active_state", error);
 #endif
-  but_continuous->set_active(continuous);
   tb_graphcolored->set_active(colored);
   tb_followactivestate->set_active(followactivestate);
   on_followactivestate_toggled();
@@ -327,14 +342,6 @@ SkillGuiGtkWindow::on_skill_changed()
   }
   SkillerDebugInterface::SetGraphMessage *sgm = new SkillerDebugInterface::SetGraphMessage(skill.c_str());
   __skdbg_if->msgq_enqueue(sgm);
-#endif
-}
-
-void
-SkillGuiGtkWindow::on_contexec_toggled()
-{
-#ifdef HAVE_GCONFMM
-  __gconf->set(GCONF_PREFIX"/continuous_exec", but_continuous->get_active());
 #endif
 }
 
@@ -365,13 +372,15 @@ SkillGuiGtkWindow::on_exec_clicked()
     if (__skiller_if && __skiller_if->is_valid() && __skiller_if->has_writer() &&
 	__skiller_if->exclusive_controller() == __skiller_if->serial()) {
 
-      if ( but_continuous->get_active() ) {
-	SkillerInterface::ExecSkillContinuousMessage *escm = new SkillerInterface::ExecSkillContinuousMessage(sks.c_str());
-	__skiller_if->msgq_enqueue(escm);
+      //if ( but_continuous->get_active() ) {
+      SkillerInterface::ExecSkillContinuousMessage *escm = new SkillerInterface::ExecSkillContinuousMessage(sks.c_str());
+      __skiller_if->msgq_enqueue(escm);
+      /*
       } else {
 	SkillerInterface::ExecSkillMessage *esm = new SkillerInterface::ExecSkillMessage(sks.c_str());
 	__skiller_if->msgq_enqueue(esm);
       }
+      */
 
     } else {
       Gtk::MessageDialog md(*this, "The exclusive control over the skiller has "
@@ -444,6 +453,212 @@ SkillGuiGtkWindow::on_stop_clicked()
 #endif
 }
 
+
+void
+SkillGuiGtkWindow::run_quickie_dialog(bool edit, std::string label)
+{
+  Gtk::Dialog *dlg = dlg_addquick;
+  Gtk::Entry *ent_label = ent_addquick_label;
+  Gtk::Entry *ent_skillstring = ent_addquick_skillstring;
+  if (edit) {
+    dlg = dlg_editquick;
+    ent_label = ent_editquick_label;
+    ent_skillstring = ent_editquick_skillstring;    
+
+    ent_label->set_text(label);
+    if (__quickies.find(label) != __quickies.end()) {
+      ent_skillstring->set_text(__quickies[label]);
+    }
+    ent_skillstring->grab_focus();
+  } else {
+    ent_label->set_text("");
+    ent_skillstring->set_text(cbe_skillstring->get_entry()->get_text());
+    ent_label->grab_focus();
+  }
+
+  dlg->set_transient_for(*this);
+
+  int rv = dlg->run();
+  dlg->hide();
+
+  if (rv == 1) {
+    if (edit) {
+      but_editquick->set_active(false);
+    }
+
+    std::string new_label = ent_label->get_text();
+    std::string skillstring = ent_skillstring->get_text();
+    if (new_label == "" || skillstring == "") {
+      Gtk::MessageDialog md(*this,
+                            "Label and skill string may not be empty.",
+                            /* markup */ false,
+                            Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK,
+                            /* modal */ true);
+      md.set_title("Missing Data");
+      md.run();
+      return;
+    } else if (new_label.find("|") != std::string::npos) {
+      Gtk::MessageDialog md(*this,
+                            "The label may not contain the pipe (|) symbol.",
+                            /* markup */ false,
+                            Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK,
+                            /* modal */ true);
+      md.set_title("Invalid Label");
+      md.run();
+      return;
+    } else if (! edit && (__quickies.find(new_label) != __quickies.end())) {
+      Gtk::MessageDialog md(*this,
+                            "A quick access button with that label already "
+                            "exists. Should it be replaced with the new "
+                            "skill string action?",
+                            /* markup */ false,
+                            Gtk::MESSAGE_ERROR, Gtk::BUTTONS_YES_NO,
+                            /* modal */ true);
+      md.set_title("Label Exists");
+      if (md.run() == Gtk::RESPONSE_NO) {
+        return;
+      }
+    }
+
+    if (__quickie_buttons.find(label) != __quickie_buttons.end()) {
+      remove_quickie_button(label);
+    }
+    __quickies[new_label] = skillstring;
+    add_quickie_button(new_label);
+    write_quickies();
+  }
+}
+
+void
+SkillGuiGtkWindow::on_addquick_clicked()
+{
+  run_quickie_dialog(false, "");
+}
+
+void
+SkillGuiGtkWindow::on_quick_clicked(std::string label)
+{
+  if (__quickies.find(label) != __quickies.end()) {
+    if (but_rmquick->get_active()) {
+      remove_quickie_button(label);
+      write_quickies();
+      but_rmquick->set_active(false);
+    } else if (but_editquick->get_active()) {
+      run_quickie_dialog(true, label);
+    } else {
+      cbe_skillstring->get_entry()->set_text(__quickies[label]);
+      but_exec->clicked();
+    }
+  }
+}
+
+
+void
+SkillGuiGtkWindow::on_rmquick_toggled()
+{
+  if (but_rmquick->get_active()) {
+    but_editquick->set_active(false);
+  }
+}
+
+void
+SkillGuiGtkWindow::on_editquick_toggled()
+{
+  if (but_editquick->get_active()) {
+    but_rmquick->set_active(false);
+  }
+}
+
+void
+SkillGuiGtkWindow::read_quickies()
+{
+#ifdef HAVE_GCONFMM
+  __quickies.clear();
+
+  Gnome::Conf::SListHandle_ValueString
+    l(__gconf->get_string_list(GCONF_PREFIX"/quickies"));
+
+  Gnome::Conf::SListHandle_ValueString::const_iterator i = l.begin();
+  for (; i != l.end(); ++i) {
+    std::string::size_type pos = (*i).find("|");
+    if (pos != std::string::npos) {
+      std::string label = (*i).substr(0, pos);
+      std::string skillstring = (*i).substr(pos+1);
+
+      __quickies[label] = skillstring;
+      add_quickie_button(label);
+    }
+  }
+#endif
+}
+
+
+void
+SkillGuiGtkWindow::write_quickies()
+{
+#ifdef HAVE_GCONFMM
+  std::list<Glib::ustring> l;
+  std::map<std::string, std::string>::iterator i;
+  for (i = __quickies.begin(); i != __quickies.end(); ++i) {
+    std::string s = i->first + "|" + i->second;
+    l.push_back(s);
+  }
+
+  __gconf->set_string_list(GCONF_PREFIX"/quickies", l);
+#endif
+}
+
+
+void
+SkillGuiGtkWindow::add_quickie_button(std::string label)
+{
+  if (__quickies.find(label) == __quickies.end())  return;
+
+  if (__quickie_buttons.find(label) != __quickie_buttons.end()) {
+    delete __quickie_buttons[label];
+  }
+  Gtk::Button *button = Gtk::manage(new Gtk::Button(label));
+
+  button->set_tooltip_text(__quickies[label]);
+
+  tab_quickies->attach(*button,
+                       __quickie_col,   __quickie_col + 1,
+                       __quickie_row,   __quickie_row + 1 );
+
+  __quickie_col += 1;
+
+  if (__quickie_col == 6) {
+    __quickie_col  = 0;
+    __quickie_row += 1;
+    tab_quickies->resize(__quickie_row, 6);
+  }
+
+  button->show();
+  button->signal_clicked().connect(sigc::bind(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_quick_clicked), label));
+  __quickie_buttons[label] = button;
+}
+
+
+void
+SkillGuiGtkWindow::remove_quickie_button(std::string label)
+{
+  if (__quickies.find(label) != __quickies.end()) {
+    std::map<std::string, Gtk::Button *>::iterator i;
+    for (i = __quickie_buttons.begin(); i != __quickie_buttons.end(); ++i) {
+      delete i->second;
+    }
+    __quickie_buttons.clear();
+    __quickies.erase(label);
+    tab_quickies->resize(1, 6);
+    __quickie_col = 1;
+    __quickie_row = 0;
+
+    std::map<std::string, std::string>::iterator j;
+    for (j = __quickies.begin(); j != __quickies.end(); ++j) {
+      add_quickie_button(j->first);
+    }
+  }
+}
 
 
 #ifndef USE_ROS
@@ -550,7 +765,6 @@ SkillGuiGtkWindow::on_connect()
     tb_connection->set_stock_id(Gtk::Stock::DISCONNECT);
     __logview->set_client(connection_dispatcher.get_client());
 
-    but_continuous->set_sensitive(true);
     tb_controller->set_sensitive(true);
     cbe_skillstring->set_sensitive(true);
 
@@ -572,7 +786,6 @@ SkillGuiGtkWindow::on_connect()
 void
 SkillGuiGtkWindow::on_disconnect()
 {
-  but_continuous->set_sensitive(false);
   tb_controller->set_sensitive(false);
   cbe_skillstring->set_sensitive(false);
   but_exec->set_sensitive(false);
@@ -599,32 +812,33 @@ SkillGuiGtkWindow::on_skiller_data_changed()
     switch (__skiller_if->status()) {
     case SkillerInterface::S_INACTIVE:
       __throbber->stop_anim();
-      lab_status->set_text("S_INACTIVE");
+      stb_status->remove_all_messages();
+      stb_status->push("S_INACTIVE");
       break;
     case SkillerInterface::S_FINAL:
       __throbber->stop_anim();
       __throbber->set_stock(Gtk::Stock::APPLY);
-      lab_status->set_text("S_FINAL");
+      stb_status->remove_all_messages();
+      stb_status->push("S_FINAL");
       break;
     case SkillerInterface::S_RUNNING:
       __throbber->start_anim();
-      lab_status->set_text("S_RUNNING");
+      stb_status->remove_all_messages();
+      stb_status->push("S_RUNNING");
       break;
     case SkillerInterface::S_FAILED:
       __throbber->stop_anim();
       __throbber->set_stock(Gtk::Stock::DIALOG_WARNING);
-      lab_status->set_text("S_FAILED");
+      stb_status->remove_all_messages();
+      stb_status->push("S_FAILED");
       break;
     }
 
-    lab_skillstring->set_text(__skiller_if->skill_string());
-    lab_error->set_text(__skiller_if->error());
 #if GTKMM_MAJOR_VERSION > 2 || ( GTKMM_MAJOR_VERSION == 2 && GTKMM_MINOR_VERSION >= 12 )
-    lab_skillstring->set_tooltip_text(__skiller_if->skill_string());
-    lab_error->set_tooltip_text(__skiller_if->error());
+    stb_status->set_tooltip_text(__skiller_if->error());
 #endif
-    lab_continuous->set_text(__skiller_if->is_continuous() ? "Yes" : "No");
-    lab_alive->set_text(__skiller_if->has_writer() ? "Yes" : "No");
+    //lab_continuous->set_text(__skiller_if->is_continuous() ? "Yes" : "No");
+    //lab_alive->set_text(__skiller_if->has_writer() ? "Yes" : "No");
 
     if ( __skiller_if->exclusive_controller() == __skiller_if->serial() ) {
       if ( tb_controller->get_stock_id() == Gtk::Stock::NO.id ) {
@@ -981,23 +1195,26 @@ SkillGuiGtkWindow::on_exec_goal_transition()
     case TerminalState::SUCCEEDED:
       __throbber->stop_anim();
       __throbber->set_stock(Gtk::Stock::APPLY);
-      lab_status->set_text("S_FINAL");
+      stb_status->remove_all_messages();
+      stb_status->push("S_FINAL");
       break;
     default:
       __throbber->stop_anim();
       __throbber->set_stock(Gtk::Stock::DIALOG_WARNING);
 
       if (__exec_errmsg != "") {
-	lab_error->set_text(__exec_errmsg);
+        stb_status->remove_all_messages();
+        stb_status->push("S_FAILED: " + __exec_errmsg);
       } else {
-	lab_status->set_text("S_FAILED");
+        stb_status->remove_all_messages();
+        stb_status->push("S_FAILED");
       }
       break;
     }
   } else {
     __throbber->start_anim();
-    lab_status->set_text("S_RUNNING");
-    lab_error->set_text("");
+    stb_status->remove_all_messages();
+    stb_status->push("S_RUNNING");
   }
 }
 

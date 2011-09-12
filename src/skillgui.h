@@ -46,6 +46,9 @@
 #  include <skiller/ExecSkillAction.h>
 #endif
 
+#include <string>
+#include <map>
+
 namespace fawkes {
   class BlackBoard;
   class InterfaceDispatcher;
@@ -71,6 +74,12 @@ class SkillGuiGtkWindow : public Gtk::Window
   ~SkillGuiGtkWindow();
 
  private:
+  void read_quickies();
+  void write_quickies();
+  void add_quickie_button(std::string label);
+  void remove_quickie_button(std::string label);
+  void run_quickie_dialog(bool edit, std::string label);
+
   void update_graph(std::string &graph_name, std::string &dotgraph);
 
   void on_config_changed();
@@ -85,6 +94,10 @@ class SkillGuiGtkWindow : public Gtk::Window
   void on_graphdir_clicked();
   void on_exec_clicked();
   void on_stop_clicked();
+  void on_addquick_clicked();
+  void on_rmquick_toggled();
+  void on_editquick_toggled();
+  void on_quick_clicked(std::string label);
 #ifndef USE_ROS
   void on_controller_clicked();
   void on_connection_clicked();
@@ -134,20 +147,26 @@ class SkillGuiGtkWindow : public Gtk::Window
   Gtk::Table             *tab_execmon;
   Gtk::Button            *but_exec;
   Gtk::Button            *but_stop;
-  Gtk::ToggleButton      *but_continuous;
   Gtk::Button            *but_clearlog;
   Gtk::ComboBoxEntry     *cbe_skillstring;
-  Gtk::Label             *lab_status;
-  Gtk::Label             *lab_alive;
-  Gtk::Label             *lab_continuous;
-  Gtk::Label             *lab_skillstring;
-  Gtk::Label             *lab_error;
   Gtk::ScrolledWindow    *scw_graph;
   Gtk::Notebook          *ntb_tabs;
   Gtk::DrawingArea       *drw_graph;
   Gtk::Toolbar           *tb_fsmgraph;
   Gtk::ToggleToolButton  *tb_skiller;
   Gtk::ToggleToolButton  *tb_agent;
+  Gtk::Statusbar         *stb_status;
+
+  Gtk::Table             *tab_quickies;
+  Gtk::Button            *but_addquick;
+  Gtk::ToggleButton      *but_rmquick;
+  Gtk::ToggleButton      *but_editquick;
+  Gtk::Dialog            *dlg_addquick;
+  Gtk::Entry             *ent_addquick_label;
+  Gtk::Entry             *ent_addquick_skillstring;
+  Gtk::Dialog            *dlg_editquick;
+  Gtk::Entry             *ent_editquick_label;
+  Gtk::Entry             *ent_editquick_skillstring;
 #ifndef USE_ROS
   Gtk::ComboBoxText      *cb_graphlist;
 #endif
@@ -208,6 +227,10 @@ class SkillGuiGtkWindow : public Gtk::Window
 #endif
   fawkes::Throbber        *__throbber;
 
+  std::map<std::string, std::string>  __quickies;
+  std::map<std::string, Gtk::Button *>  __quickie_buttons;
+  int                     __quickie_row;
+  int                     __quickie_col;
 };
 
 #endif
