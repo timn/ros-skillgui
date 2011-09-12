@@ -161,12 +161,12 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkRadioToolButton" id="tb_skiller">
+                      <object class="GtkRadioToolButton" id="tb_agent">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="use_action_appearance">False</property>
                         <property name="is_important">True</property>
-                        <property name="label" translatable="yes">Skiller</property>
+                        <property name="label" translatable="yes">Agent</property>
                         <property name="active">True</property>
                       </object>
                       <packing>
@@ -175,13 +175,13 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkRadioToolButton" id="tb_agent">
+                      <object class="GtkRadioToolButton" id="tb_skiller">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="use_action_appearance">False</property>
                         <property name="is_important">True</property>
-                        <property name="label" translatable="yes">Agent</property>
-                        <property name="group">tb_skiller</property>
+                        <property name="label" translatable="yes">Skiller</property>
+                        <property name="group">tb_agent</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
