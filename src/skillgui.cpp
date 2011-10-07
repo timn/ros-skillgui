@@ -143,6 +143,25 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   builder->get_widget("ent_editquick_label", ent_editquick_label);
   builder->get_widget("ent_editquick_skillstring", ent_editquick_skillstring);
 
+  builder->get_widget("lab_sysstate", lab_sysstate);
+  builder->get_widget("eb_sysstate", eb_sysstate);
+  builder->get_widget("but_sysstate", but_sysstate);
+
+  builder->get_widget("dlg_cedar", dlg_cedar);
+  builder->get_widget("trv_cedar_nodes", trv_cedar_nodes);
+  builder->get_widget("trv_cedar_conns", trv_cedar_conns);
+  lst_cedar_nodes = Gtk::ListStore::create(__cedar_node_record);
+  lst_cedar_conns = Gtk::ListStore::create(__cedar_conn_record);
+  trv_cedar_nodes->set_model(lst_cedar_nodes);
+  trv_cedar_conns->set_model(lst_cedar_conns);
+  trv_cedar_nodes->get_selection()->set_mode(Gtk::SELECTION_NONE);
+  trv_cedar_conns->get_selection()->set_mode(Gtk::SELECTION_NONE);
+
+  trv_cedar_nodes->append_column("Node", __cedar_node_record.nodename);
+
+  trv_cedar_conns->append_column("Topic", __cedar_conn_record.topic);
+  trv_cedar_conns->append_column("From Node", __cedar_conn_record.from);
+  trv_cedar_conns->append_column("To Node", __cedar_conn_record.to);
 
   // This hack is required because setting expanding in Glade-3 does not
   // have the same effect of right-aligning the throbber
@@ -244,6 +263,8 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 #else
   __graph_changed.connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graph_changed));
   __exec_transition.connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_exec_goal_transition));
+  __sysstate_update.connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_sysstate_update));
+  but_sysstate->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_sysstate_clicked));
 #endif
   tb_graphdir->signal_clicked().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphdir_clicked));
   tb_graphcolored->signal_toggled().connect(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_graphcolor_toggled));
@@ -270,6 +291,9 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
 					  &SkillGuiGtkWindow::ros_skiller_graphmsg_cb, this);
   __sub_graph_agent  = __rosnh.subscribe("/luaagent/graph", 10,
 					 &SkillGuiGtkWindow::ros_agent_graphmsg_cb, this);
+  __sub_sysstate  = __rosnh.subscribe("cedar/system_state", 10,
+                                      &SkillGuiGtkWindow::ros_sysstate_cb, this);
+
   __srv_graph_color_skiller = __rosnh.serviceClient<skiller::SetGraphColored>("/skiller/graph/set_colored");
   __srv_graph_direction_skiller = __rosnh.serviceClient<skiller::SetGraphDirection>("/skiller/graph/set_direction");
   __srv_graph_color_agent = __rosnh.serviceClient<skiller::SetGraphColored>("/luaagent/graph/set_colored");
@@ -301,6 +325,7 @@ SkillGuiGtkWindow::~SkillGuiGtkWindow()
 #ifndef USE_ROS
   __logview->set_client(NULL);
   __trv_plugins->set_network_client(NULL);
+  __rosnh.shutdown();
 #endif
 }
 
@@ -1168,6 +1193,90 @@ SkillGuiGtkWindow::on_graph_changed()
 }
 
 void
+SkillGuiGtkWindow::on_sysstate_update()
+{
+  Gdk::Color color;
+  Glib::ustring size = "20";
+  if (__sysstate_msg->state == cedar::SystemState::STATE_GREEN) {
+    color = Gdk::Color("green");
+  } else if (__sysstate_msg->state == cedar::SystemState::STATE_YELLOW) {
+    color = Gdk::Color("yellow");
+    size = "14";
+  } else {
+    color = Gdk::Color("red");
+    size = "14";
+  }
+
+  eb_sysstate->modify_bg(Gtk::STATE_NORMAL, color);
+  eb_sysstate->modify_bg(Gtk::STATE_ACTIVE, color);
+  eb_sysstate->modify_bg(Gtk::STATE_PRELIGHT, color);
+  Glib::ustring s =
+    Glib::ustring::compose("<b><span font=\"%1\">%2</span></b>",
+                           size, __sysstate_msg->description);
+  lab_sysstate->set_markup(s);
+
+  if (dlg_cedar->get_visible()) {
+    update_cedar_lists();
+  }
+}
+
+
+void
+SkillGuiGtkWindow::update_cedar_lists()
+{
+  lst_cedar_nodes->clear();
+  lst_cedar_conns->clear();
+  std::vector<std::string>::const_iterator n;
+  for (n = __sysstate_msg->dead_nodes.begin();
+       n != __sysstate_msg->dead_nodes.end(); ++n)
+  {
+    Gtk::TreeModel::Row row = *lst_cedar_nodes->append();
+    row[__cedar_node_record.nodename] = *n;
+  }
+  
+  std::vector<cedar::TopicConnection>::const_iterator tc;
+  for (tc = __sysstate_msg->dead_connections.begin();
+       tc != __sysstate_msg->dead_connections.end(); ++tc)
+  {
+    Gtk::TreeModel::Row row = *lst_cedar_conns->append();
+    row[__cedar_conn_record.topic] = tc->topic;
+    row[__cedar_conn_record.from] = tc->from_node;
+    row[__cedar_conn_record.to] = tc->to_node;
+  }
+}
+
+void
+SkillGuiGtkWindow::on_sysstate_clicked()
+{
+  if (! __sysstate_msg) {
+    Gtk::MessageDialog md(*this,
+                          "No system state message has been received, yet.",
+                          /* markup */ false,
+                          Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK,
+                          /* modal */ true);
+    md.set_title("No System State Data");
+    md.run();
+  } else if (__sysstate_msg->state == cedar::SystemState::STATE_GREEN) {
+    Gtk::MessageDialog md(*this,
+                          "All monitored nodes have been started and "
+                          "connections have been established. System is "
+                          "operating normal.",
+                          /* markup */ false,
+                          Gtk::MESSAGE_INFO, Gtk::BUTTONS_OK,
+                          /* modal */ true);
+    md.set_title("System Operating Normal");
+    md.run();
+  } else {
+    update_cedar_lists();
+
+    dlg_cedar->set_transient_for(*this);
+    dlg_cedar->run();
+    dlg_cedar->hide();
+  }
+}
+
+
+void
 SkillGuiGtkWindow::ros_skiller_graphmsg_cb(const skiller::Graph::ConstPtr &msg)
 {
   __graph_msg_skiller = msg;
@@ -1180,6 +1289,13 @@ SkillGuiGtkWindow::ros_agent_graphmsg_cb(const skiller::Graph::ConstPtr &msg)
 {
   __graph_msg_agent = msg;
   if (tb_agent->get_active())  __graph_changed();
+}
+
+void
+SkillGuiGtkWindow::ros_sysstate_cb(const cedar::SystemState::ConstPtr &msg)
+{
+  __sysstate_msg = msg;
+  __sysstate_update();
 }
 
 
@@ -1270,3 +1386,29 @@ SkillGuiGtkWindow::on_recording_toggled()
   }
 #endif
 }
+
+#ifdef USE_ROS
+/** @class SkillGuiGtkWindow::CedarNodeRecord "skillgui.h"
+ * TreeView record for CEDAR dead nodes display..
+ */
+
+/** Constructor. */
+SkillGuiGtkWindow::CedarNodeRecord::CedarNodeRecord()
+{
+  add(nodename);
+}
+
+
+/** @class SkillGuiGtkWindow::CedarTopicConnRecord "skillgui.h"
+ * TreeView record for CEDAR dead nodes display..
+ */
+
+/** Constructor. */
+SkillGuiGtkWindow::CedarTopicConnRecord::CedarTopicConnRecord()
+{
+  add(topic);
+  add(from);
+  add(to);
+}
+
+#endif

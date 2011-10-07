@@ -10,6 +10,7 @@
   <depend package="actionlib"/>
   <depend package="actionlib_msgs"/>
   <depend package="nodemon_msgs"/>
+  <depend package="cedar"/>
   <rosdep name="gtkmm24" />
   <rosdep name="glibmm24" />
   <rosdep name="gconfmm26" />

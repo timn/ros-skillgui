@@ -44,6 +44,7 @@
 #  include <skiller/SetGraphColored.h>
 #  include <skiller/SetGraphDirection.h>
 #  include <skiller/ExecSkillAction.h>
+#  include <cedar/SystemState.h>
 #endif
 
 #include <string>
@@ -116,8 +117,13 @@ class SkillGuiGtkWindow : public Gtk::Window
   void ros_exec_transition_cb(actionlib::ClientGoalHandle<skiller::ExecSkillAction> &gh);
   void ros_exec_feedback_cb(actionlib::ClientGoalHandle<skiller::ExecSkillAction> &gh,
 			    const skiller::ExecSkillFeedbackConstPtr &feedback);
+  void ros_sysstate_cb(const cedar::SystemState::ConstPtr &msg);
+
+  void on_sysstate_update();
+  void on_sysstate_clicked();
   void on_graph_changed();
   void on_exec_goal_transition();
+  void update_cedar_lists();
 #endif
 
  private:
@@ -201,6 +207,9 @@ class SkillGuiGtkWindow : public Gtk::Window
   ros::NodeHandle __rosnh;
   ros::Subscriber __sub_graph_skiller;
   ros::Subscriber __sub_graph_agent;
+  ros::Subscriber __sub_sysstate;
+  Glib::Dispatcher __sysstate_update;
+  cedar::SystemState::ConstPtr __systate_msg;
   ros::ServiceClient __srv_graph_color_skiller;
   ros::ServiceClient __srv_graph_direction_skiller;
   ros::ServiceClient __srv_graph_color_agent;
@@ -209,14 +218,43 @@ class SkillGuiGtkWindow : public Gtk::Window
   Glib::Dispatcher __exec_transition;
   skiller::Graph::ConstPtr __graph_msg_skiller;
   skiller::Graph::ConstPtr __graph_msg_agent;
+  cedar::SystemState::ConstPtr __sysstate_msg;
   actionlib::ActionClient<skiller::ExecSkillAction> __ac_exec;
   actionlib::ClientGoalHandle<skiller::ExecSkillAction> __gh;
   fawkes::NodemonTreeView  *__trv_nodemon;
   fawkes::RosLogView       *__logview;
   fawkes::RosErrorsTreeView   *__trv_errors;
+  Gtk::Label *lab_sysstate;
+  Gtk::EventBox *eb_sysstate;
+  Gtk::Button *but_sysstate;
+  Gtk::TreeView *trv_cedar_nodes;
+  Gtk::TreeView *trv_cedar_conns;
   actionlib::CommState     __exec_comm_state;
   actionlib::TerminalState __exec_terminal_state;
   Glib::ustring __exec_errmsg;
+  Gtk::Dialog *dlg_cedar;
+  Glib::RefPtr<Gtk::ListStore> lst_cedar_nodes;
+  Glib::RefPtr<Gtk::ListStore> lst_cedar_conns;
+
+  class CedarNodeRecord : public Gtk::TreeModelColumnRecord
+  {
+   public:
+    CedarNodeRecord();
+    Gtk::TreeModelColumn<Glib::ustring> nodename;
+  };
+
+  class CedarTopicConnRecord : public Gtk::TreeModelColumnRecord
+  {
+   public:
+    CedarTopicConnRecord();
+    Gtk::TreeModelColumn<Glib::ustring> topic;
+    Gtk::TreeModelColumn<Glib::ustring> from;
+    Gtk::TreeModelColumn<Glib::ustring> to;
+  };
+
+  CedarNodeRecord      __cedar_node_record;
+  CedarTopicConnRecord __cedar_conn_record;
+
 #else
   fawkes::SkillerInterface *__skiller_if;
   fawkes::SkillerDebugInterface *__skdbg_if;
