@@ -120,6 +120,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   void ros_sysstate_cb(const cedar::SystemState::ConstPtr &msg);
 
   void on_sysstate_update();
+  bool on_sysstate_timeout();
   void on_sysstate_clicked();
   void on_graph_changed();
   void on_exec_goal_transition();
@@ -237,6 +238,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   Gtk::Dialog *dlg_cedar;
   Glib::RefPtr<Gtk::ListStore> lst_cedar_nodes;
   Glib::RefPtr<Gtk::ListStore> lst_cedar_conns;
+  sigc::connection __cedar_timeout;
 
   class CedarNodeRecord : public Gtk::TreeModelColumnRecord
   {

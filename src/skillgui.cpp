@@ -47,6 +47,7 @@
 #  include "logview.h"
 #  include "errors_treeview.h"
 #  include <functional>
+#  define SYSSTATE_TIMEOUT 3
 #endif
 
 #include <cstring>
@@ -301,6 +302,8 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   __srv_graph_direction_skiller = __rosnh.serviceClient<skiller::SetGraphDirection>("/skiller/graph/set_direction");
   __srv_graph_color_agent = __rosnh.serviceClient<skiller::SetGraphColored>("/luaagent/graph/set_colored");
   __srv_graph_direction_agent = __rosnh.serviceClient<skiller::SetGraphDirection>("/luaagent/graph/set_direction");
+
+  on_sysstate_timeout();
 #endif
 
 #ifdef HAVE_GCONFMM
@@ -1234,8 +1237,32 @@ SkillGuiGtkWindow::on_sysstate_update()
     lab_dlg_cedar_last_updated->set_text(timestr);
     free(timestr);
   }
+
+  if (__cedar_timeout && __cedar_timeout.connected()) {
+    __cedar_timeout.disconnect();
+  }
+  __cedar_timeout =
+    Glib::signal_timeout().connect_seconds(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_sysstate_timeout), SYSSTATE_TIMEOUT);
 }
 
+
+bool
+SkillGuiGtkWindow::on_sysstate_timeout()
+{
+  if (! __sysstate_msg ||
+      ((ros::Time::now() - __sysstate_msg->stamp).toSec() > SYSSTATE_TIMEOUT))
+  {
+    Gdk::Color color = Gdk::Color("orange");
+
+    eb_sysstate->modify_bg(Gtk::STATE_NORMAL, color);
+    eb_sysstate->modify_bg(Gtk::STATE_ACTIVE, color);
+    eb_sysstate->modify_bg(Gtk::STATE_PRELIGHT, color);
+    lab_sysstate->set_markup("<b><span font=\"20\">?</span></b>");
+  }
+  if (__sysstate_msg)  __sysstate_msg.reset();
+
+  return false;
+}
 
 void
 SkillGuiGtkWindow::update_cedar_lists()
@@ -1266,7 +1293,9 @@ SkillGuiGtkWindow::on_sysstate_clicked()
 {
   if (! __sysstate_msg) {
     Gtk::MessageDialog md(*this,
-                          "No system state message has been received, yet.",
+                          "No system state message has been received, yet, or "
+                          "the last message is too old. This might indicate "
+                          "that CEDAR monitoring is not running.",
                           /* markup */ false,
                           Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK,
                           /* modal */ true);
