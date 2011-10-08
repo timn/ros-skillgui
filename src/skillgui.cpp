@@ -146,6 +146,9 @@ SkillGuiGtkWindow::SkillGuiGtkWindow(BaseObjectType* cobject,
   builder->get_widget("lab_sysstate", lab_sysstate);
   builder->get_widget("eb_sysstate", eb_sysstate);
   builder->get_widget("but_sysstate", but_sysstate);
+  builder->get_widget("lab_dlg_cedar_sysstate", lab_dlg_cedar_sysstate);
+  builder->get_widget("eb_dlg_cedar_sysstate", eb_dlg_cedar_sysstate);
+  builder->get_widget("lab_dlg_cedar_last_updated", lab_dlg_cedar_last_updated);
 
   builder->get_widget("dlg_cedar", dlg_cedar);
   builder->get_widget("trv_cedar_nodes", trv_cedar_nodes);
@@ -1217,6 +1220,19 @@ SkillGuiGtkWindow::on_sysstate_update()
 
   if (dlg_cedar->get_visible()) {
     update_cedar_lists();
+    eb_dlg_cedar_sysstate->modify_bg(Gtk::STATE_NORMAL, color);
+    eb_dlg_cedar_sysstate->modify_bg(Gtk::STATE_ACTIVE, color);
+    eb_dlg_cedar_sysstate->modify_bg(Gtk::STATE_PRELIGHT, color);
+    lab_dlg_cedar_sysstate->set_markup(s);
+    
+    char *timestr = (char *)malloc(26);
+    tm time_tm;
+    time_t sec  =__sysstate_msg->stamp.sec;
+    localtime_r( &sec, &time_tm );
+    asctime_r(&time_tm, timestr);
+    timestr[strlen(timestr) - 1] = 0;
+    lab_dlg_cedar_last_updated->set_text(timestr);
+    free(timestr);
   }
 }
 

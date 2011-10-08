@@ -209,7 +209,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   ros::Subscriber __sub_graph_agent;
   ros::Subscriber __sub_sysstate;
   Glib::Dispatcher __sysstate_update;
-  cedar::SystemState::ConstPtr __systate_msg;
+  cedar::SystemState::ConstPtr __sysstate_msg;
   ros::ServiceClient __srv_graph_color_skiller;
   ros::ServiceClient __srv_graph_direction_skiller;
   ros::ServiceClient __srv_graph_color_agent;
@@ -218,7 +218,6 @@ class SkillGuiGtkWindow : public Gtk::Window
   Glib::Dispatcher __exec_transition;
   skiller::Graph::ConstPtr __graph_msg_skiller;
   skiller::Graph::ConstPtr __graph_msg_agent;
-  cedar::SystemState::ConstPtr __sysstate_msg;
   actionlib::ActionClient<skiller::ExecSkillAction> __ac_exec;
   actionlib::ClientGoalHandle<skiller::ExecSkillAction> __gh;
   fawkes::NodemonTreeView  *__trv_nodemon;
@@ -229,6 +228,9 @@ class SkillGuiGtkWindow : public Gtk::Window
   Gtk::Button *but_sysstate;
   Gtk::TreeView *trv_cedar_nodes;
   Gtk::TreeView *trv_cedar_conns;
+  Gtk::EventBox *eb_dlg_cedar_sysstate;
+  Gtk::Label *lab_dlg_cedar_sysstate;
+  Gtk::Label *lab_dlg_cedar_last_updated;
   actionlib::CommState     __exec_comm_state;
   actionlib::TerminalState __exec_terminal_state;
   Glib::ustring __exec_errmsg;
