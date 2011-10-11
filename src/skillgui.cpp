@@ -1203,9 +1203,9 @@ SkillGuiGtkWindow::on_sysstate_update()
 {
   Gdk::Color color;
   Glib::ustring size = "20";
-  if (__sysstate_msg->state == cedar::SystemState::STATE_GREEN) {
+  if (__sysstate_msg->condition == cedar::SystemState::COND_GREEN) {
     color = Gdk::Color("green");
-  } else if (__sysstate_msg->state == cedar::SystemState::STATE_YELLOW) {
+  } else if (__sysstate_msg->condition == cedar::SystemState::COND_YELLOW) {
     color = Gdk::Color("yellow");
     size = "14";
   } else {
@@ -1301,7 +1301,7 @@ SkillGuiGtkWindow::on_sysstate_clicked()
                           /* modal */ true);
     md.set_title("No System State Data");
     md.run();
-  } else if (__sysstate_msg->state == cedar::SystemState::STATE_GREEN) {
+  } else if (__sysstate_msg->condition == cedar::SystemState::COND_GREEN) {
     Gtk::MessageDialog md(*this,
                           "All monitored nodes have been started and "
                           "connections have been established. System is "
