@@ -1201,11 +1201,23 @@ SkillGuiGtkWindow::on_graph_changed()
 void
 SkillGuiGtkWindow::on_sysstate_update()
 {
+  bool message_received;
+  unsigned int condition = 0;
+  std::string description = "?";
+  {
+    Glib::Mutex::Lock lock(__sysstate_mutex);
+    message_received = !! __sysstate_msg;
+    condition = __sysstate_msg->condition;
+    description = __sysstate_msg->description;
+  }
+
   Gdk::Color color;
   Glib::ustring size = "20";
-  if (__sysstate_msg->condition == cedar::SystemState::COND_GREEN) {
+  if (! message_received) {
+    color = Gdk::Color("orange");
+  } else if (condition == cedar::SystemState::COND_GREEN) {
     color = Gdk::Color("green");
-  } else if (__sysstate_msg->condition == cedar::SystemState::COND_YELLOW) {
+  } else if (condition == cedar::SystemState::COND_YELLOW) {
     color = Gdk::Color("yellow");
     size = "14";
   } else {
@@ -1218,11 +1230,16 @@ SkillGuiGtkWindow::on_sysstate_update()
   eb_sysstate->modify_bg(Gtk::STATE_PRELIGHT, color);
   Glib::ustring s =
     Glib::ustring::compose("<b><span font=\"%1\">%2</span></b>",
-                           size, __sysstate_msg->description);
+                           size, description);
   lab_sysstate->set_markup(s);
 
   if (dlg_cedar->get_visible()) {
-    update_cedar_lists();
+    time_t sec = 0;
+    if (message_received) {
+      Glib::Mutex::Lock lock(__sysstate_mutex);
+      update_cedar_lists();
+      sec  =__sysstate_msg->stamp.sec;
+    }
     eb_dlg_cedar_sysstate->modify_bg(Gtk::STATE_NORMAL, color);
     eb_dlg_cedar_sysstate->modify_bg(Gtk::STATE_ACTIVE, color);
     eb_dlg_cedar_sysstate->modify_bg(Gtk::STATE_PRELIGHT, color);
@@ -1230,7 +1247,6 @@ SkillGuiGtkWindow::on_sysstate_update()
     
     char *timestr = (char *)malloc(26);
     tm time_tm;
-    time_t sec  =__sysstate_msg->stamp.sec;
     localtime_r( &sec, &time_tm );
     asctime_r(&time_tm, timestr);
     timestr[strlen(timestr) - 1] = 0;
@@ -1249,6 +1265,7 @@ SkillGuiGtkWindow::on_sysstate_update()
 bool
 SkillGuiGtkWindow::on_sysstate_timeout()
 {
+  Glib::Mutex::Lock lock(__sysstate_mutex);
   if (! __sysstate_msg ||
       ((ros::Time::now() - __sysstate_msg->stamp).toSec() > SYSSTATE_TIMEOUT))
   {
@@ -1258,6 +1275,7 @@ SkillGuiGtkWindow::on_sysstate_timeout()
     eb_sysstate->modify_bg(Gtk::STATE_ACTIVE, color);
     eb_sysstate->modify_bg(Gtk::STATE_PRELIGHT, color);
     lab_sysstate->set_markup("<b><span font=\"20\">?</span></b>");
+    lab_dlg_cedar_sysstate->set_markup("<b><span font=\"20\">?</span></b>");
   }
   if (__sysstate_msg)  __sysstate_msg.reset();
 
@@ -1291,7 +1309,16 @@ SkillGuiGtkWindow::update_cedar_lists()
 void
 SkillGuiGtkWindow::on_sysstate_clicked()
 {
-  if (! __sysstate_msg) {
+  unsigned int condition = 0;
+  bool message_received;
+
+  {
+    Glib::Mutex::Lock lock(__sysstate_mutex);
+    message_received = !! __sysstate_msg;
+    if (message_received)  condition = __sysstate_msg->condition;
+  }
+
+  if (! message_received) {
     Gtk::MessageDialog md(*this,
                           "No system state message has been received, yet, or "
                           "the last message is too old. This might indicate "
@@ -1301,7 +1328,7 @@ SkillGuiGtkWindow::on_sysstate_clicked()
                           /* modal */ true);
     md.set_title("No System State Data");
     md.run();
-  } else if (__sysstate_msg->condition == cedar::SystemState::COND_GREEN) {
+  } else if (condition == cedar::SystemState::COND_GREEN) {
     Gtk::MessageDialog md(*this,
                           "All monitored nodes have been started and "
                           "connections have been established. System is "
@@ -1312,7 +1339,10 @@ SkillGuiGtkWindow::on_sysstate_clicked()
     md.set_title("System Operating Normal");
     md.run();
   } else {
-    update_cedar_lists();
+    {
+      Glib::Mutex::Lock lock(__sysstate_mutex);
+      update_cedar_lists();
+    }
 
     dlg_cedar->set_transient_for(*this);
     dlg_cedar->run();

@@ -211,6 +211,7 @@ class SkillGuiGtkWindow : public Gtk::Window
   ros::Subscriber __sub_sysstate;
   Glib::Dispatcher __sysstate_update;
   cedar::SystemState::ConstPtr __sysstate_msg;
+  Glib::Mutex                  __sysstate_mutex;
   ros::ServiceClient __srv_graph_color_skiller;
   ros::ServiceClient __srv_graph_direction_skiller;
   ros::ServiceClient __srv_graph_color_agent;
