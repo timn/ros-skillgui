@@ -1369,7 +1369,10 @@ SkillGuiGtkWindow::ros_agent_graphmsg_cb(const skiller::Graph::ConstPtr &msg)
 void
 SkillGuiGtkWindow::ros_sysstate_cb(const cedar::SystemState::ConstPtr &msg)
 {
-  __sysstate_msg = msg;
+  {
+    Glib::Mutex::Lock lock(__sysstate_mutex);
+    __sysstate_msg = msg;
+  }
   __sysstate_update();
 }
 
