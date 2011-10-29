@@ -163,6 +163,17 @@ void
 RosErrorsTreeView::ros_nodestate_cb(const nodemon_msgs::NodeState::ConstPtr &msg)
 {
   Glib::Mutex::Lock lock(__received_mutex);
+  if (__last_msg.find(msg->nodename) != __last_msg.end()) {
+    const nodemon_msgs::NodeState::ConstPtr &last = __last_msg[msg->nodename];
+    if ( (last->time == msg->time) &&
+         (last->machine_message == msg->machine_message) )
+    {
+      // ignore duplicate messages, e.g. received due to heartbeat
+      return;
+    }
+  }
+
+  __last_msg[msg->nodename] = msg;
   __received_msgs.push(msg);
   lock.release();
   __received_dispatcher();

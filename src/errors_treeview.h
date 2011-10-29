@@ -89,6 +89,8 @@ class RosErrorsTreeView
   Glib::Mutex __received_mutex;
   std::queue<nodemon_msgs::NodeState::ConstPtr> __received_msgs;
   Glib::Dispatcher __received_dispatcher;
+
+  std::map<std::string, nodemon_msgs::NodeState::ConstPtr> __last_msg;
 };
 
 } // end namespace fawkes
