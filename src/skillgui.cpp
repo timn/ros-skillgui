@@ -1348,6 +1348,11 @@ SkillGuiGtkWindow::on_sysstate_clicked()
   } else {
     {
       Glib::Mutex::Lock lock(__sysstate_mutex);
+      if (__sysstate_msg && (__sysstate_msg->description == "Nodes FATAL")) {
+        ntb_tabs->set_current_page(2);
+        return;
+      }
+
       if (__sysstate_msg) {
         update_cedar_lists();
       }
