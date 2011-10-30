@@ -300,8 +300,8 @@ NodemonTreeView::update()
     bool timed_out =
       ((now - last_update).toSec() > TIMEOUT_SEC);
 
-    bool state_hang = last_msg &&
-      ((ros::Time::now() - last_msg->time).toSec() > TIMEOUT_SEC);
+    //bool state_hang = last_msg &&
+    //  ((ros::Time::now() - last_msg->time).toSec() > TIMEOUT_SEC);
 
     if ( ! last_msg) {
       // no message received, yet
@@ -314,7 +314,6 @@ NodemonTreeView::update()
       // 231b  hourglass, unsupported in common fonts
       row[__record.state] = "\u2198";
       row[__record.foreground] = Gdk::Color("#888888");
-
     } else if (timed_out) {
       // 231b  hourglass, unsupported in common fonts
       row[__record.state] = "\u231a";
@@ -368,11 +367,13 @@ NodemonTreeView::update()
 	break;
       }
 
+      /*
       if (state_hang) {
 	// 231b  hourglass, unsupported in common fonts
 	row[__record.state] = "\u231a";
 	row[__record.foreground] = Gdk::Color("#B20000");
       }
+      */
     }
     /*
     if (last_msg && ((now - last_update).toSec() <= UPDATE_INTERVAL_SEC))
