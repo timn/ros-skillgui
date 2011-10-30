@@ -1201,15 +1201,24 @@ SkillGuiGtkWindow::on_graph_changed()
 void
 SkillGuiGtkWindow::on_sysstate_update()
 {
-  bool message_received;
+  if (__cedar_timeout && __cedar_timeout.connected()) {
+    __cedar_timeout.disconnect();
+  }
+
+  bool message_received = false;
   unsigned int condition = 0;
   std::string description = "?";
+  time_t sec = 0;
   {
     Glib::Mutex::Lock lock(__sysstate_mutex);
-    message_received = !! __sysstate_msg;
-    condition = __sysstate_msg->condition;
-    description = __sysstate_msg->description;
+    if (__sysstate_msg) {
+      message_received = true;
+      condition = __sysstate_msg->condition;
+      description = __sysstate_msg->description;
+      sec  =__sysstate_msg->stamp.sec;
+    }
   }
+
 
   Gdk::Color color;
   Glib::ustring size = "20";
@@ -1234,11 +1243,11 @@ SkillGuiGtkWindow::on_sysstate_update()
   lab_sysstate->set_markup(s);
 
   if (dlg_cedar->get_visible()) {
-    time_t sec = 0;
-    if (message_received) {
+    {
       Glib::Mutex::Lock lock(__sysstate_mutex);
-      update_cedar_lists();
-      sec  =__sysstate_msg->stamp.sec;
+      if (__sysstate_msg) {
+        update_cedar_lists();
+      }
     }
     eb_dlg_cedar_sysstate->modify_bg(Gtk::STATE_NORMAL, color);
     eb_dlg_cedar_sysstate->modify_bg(Gtk::STATE_ACTIVE, color);
@@ -1254,11 +1263,9 @@ SkillGuiGtkWindow::on_sysstate_update()
     free(timestr);
   }
 
-  if (__cedar_timeout && __cedar_timeout.connected()) {
-    __cedar_timeout.disconnect();
-  }
   __cedar_timeout =
     Glib::signal_timeout().connect_seconds(sigc::mem_fun(*this, &SkillGuiGtkWindow::on_sysstate_timeout), SYSSTATE_TIMEOUT);
+
 }
 
 
@@ -1341,7 +1348,9 @@ SkillGuiGtkWindow::on_sysstate_clicked()
   } else {
     {
       Glib::Mutex::Lock lock(__sysstate_mutex);
-      update_cedar_lists();
+      if (__sysstate_msg) {
+        update_cedar_lists();
+      }
     }
 
     dlg_cedar->set_transient_for(*this);
